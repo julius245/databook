@@ -51,8 +51,7 @@ def create_app():
     # Ruta raiz del proyecto: cuando alguien entra al dominio los manda al inicio publico
     @app.route('/')
     def index():
-        return redirect(url_for('web.index_web'))
-
+        return redirect('/')
     return app
 
 # Se crea la aplicacion principal
