@@ -1,0 +1,159 @@
+{% extends "aplicacion/layout.html" %}
+{% from 'iconos.html' import icono %}
+{% block titulo %}Sanciones pedagógicas — DataBook{% endblock %}
+
+{% block contenido %}
+<div class="app-header-row">
+  <div>
+    <h1>Sanciones pedagógicas</h1>
+    <p>{{ total_active }} sanción(es) activa(s) · {{ total_hours }} hora(s) pendientes</p>
+  </div>
+  {% if has_permission('multas', 'editor') %}
+  <button class="btn btn-azul" onclick="abrirModal('modal-nueva-sancion')">+ Nueva Sanción</button>
+  {% endif %}
+</div>
+
+<div class="reglas-multas">
+  <h4>{{ icono('info') }} Sobre las sanciones pedagógicas</h4>
+  <ul>
+    <li>Son medidas formativas (talleres, apoyo en la biblioteca, reseñas) que se asignan a un miembro, con o sin un préstamo asociado.</li>
+    <li>Una sanción activa con fecha límite vencida se marca como «Vencida» para que le hagas seguimiento.</li>
+    <li>Al cumplirla se registra la fecha de cumplimiento.</li>
+  </ul>
+</div>
+
+<form method="GET" class="barra-filtros">
+  <div class="buscar">
+    <span class="icono-buscar">{{ icono('buscar') }}</span>
+    <input type="text" name="q" value="{{ search_term }}" placeholder="Buscar por miembro, ID (documento), tipo o libro...">
+  </div>
+  <select name="estado" onchange="this.form.submit()">
+    {% for opcion in filters %}
+      <option value="{{ opcion }}" {{ 'selected' if filter_value == opcion }}>{{ opcion }}{{ 's' if opcion == 'Todas' }}</option>
+    {% endfor %}
+  </select>
+</form>
+
+<div class="tabla-wrap">
+  <table class="tabla-datos">
+    <thead>
+      <tr>
+        <th>Miembro</th><th>Identificación</th><th>Sanción</th><th>Horas</th><th>Inicio</th><th>Límite</th><th>Estado</th><th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in sanctions %}
+      <tr>
+        <td>{{ s.miembro_nombre }}</td>
+        <td>{{ s.documento_id }}</td>
+        <td>
+          {{ s.tipo }}
+          {% if s.libro_titulo %}<div class="subtexto">Préstamo: {{ s.libro_titulo }}</div>{% endif %}
+          {% if s.descripcion %}<div class="subtexto">{{ s.descripcion }}</div>{% endif %}
+        </td>
+        <td>{{ s.horas }}</td>
+        <td>{{ s.fecha_inicio|format_date }}</td>
+        <td>{{ s.fecha_limite|format_date }}</td>
+        <td>
+          {% if s.estado == 'Activa' and s.vencida %}
+            <span class="badge badge-rojo">Vencida</span>
+          {% elif s.estado == 'Activa' %}
+            <span class="badge badge-azul">Activa</span>
+          {% elif s.estado == 'Cumplida' %}
+            <span class="badge badge-verde">Cumplida</span>
+            <div class="subtexto">{{ s.fecha_cumplimiento|format_date }}</div>
+          {% else %}
+            <span class="badge badge-gris">Cancelada</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if s.estado == 'Activa' %}
+          <div class="acciones-tabla">
+            {% if has_permission('multas', 'editor') %}
+            <form method="POST" action="{{ url_for('sanctions.complete_sanction', sanction_id=s.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-outline btn-sm">{{ icono('verificado') }} Cumplida</button>
+            </form>
+            {% endif %}
+            {% if has_permission('multas', 'control_total') %}
+            <form method="POST" action="{{ url_for('sanctions.cancel_sanction', sanction_id=s.id) }}" onsubmit="return confirm('¿Cancelar esta sanción?');" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-outline btn-sm" title="Cancelar">{{ icono('bloqueado') }}</button>
+            </form>
+            {% endif %}
+          </div>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" class="vacio">No hay sanciones registradas.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block modales %}
+<div class="overlay-modal" id="modal-nueva-sancion">
+  <div class="modal">
+    <div class="cabecera-modal">
+      <h2>Nueva Sanción Pedagógica</h2>
+      <button class="cerrar" onclick="cerrarModal('modal-nueva-sancion')">{{ icono('cerrar') }}</button>
+    </div>
+    <form method="POST" action="{{ url_for('sanctions.new_sanction') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="campo">
+        <label>Miembro *</label>
+        <select name="miembro_id" id="sel-miembro-sancion" required onchange="filtrarPrestamos()">
+          <option value="">Seleccionar miembro</option>
+          {% for m in members %}<option value="{{ m.id }}">{{ m.nombre_completo }} — {{ m.documento_id }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="campo">
+        <label>Préstamo asociado (opcional)</label>
+        <select name="prestamo_id" id="sel-prestamo-sancion">
+          <option value="">Sin préstamo asociado</option>
+          {% for p in loans %}<option value="{{ p.id }}" data-miembro="{{ p.miembro_id }}">{{ p.titulo }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="fila-2">
+        <div class="campo">
+          <label>Tipo de sanción *</label>
+          <select name="tipo" required>
+            {% for t in types %}<option>{{ t }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="campo"><label>Horas</label><input type="number" name="horas" min="0" max="{{ max_hours }}" value="0"></div>
+      </div>
+      <div class="fila-2">
+        <div class="campo"><label>Fecha de inicio</label><input type="date" name="fecha_inicio" value="{{ today }}"></div>
+        <div class="campo"><label>Fecha límite</label><input type="date" name="fecha_limite" min="{{ today }}"></div>
+      </div>
+      <div class="campo"><label>Descripción</label><textarea name="descripcion" rows="2" placeholder="¿En qué consiste la sanción?"></textarea></div>
+      <div class="campo"><label>Notas</label><textarea name="notas" rows="2"></textarea></div>
+      <div class="acciones-modal">
+        <button type="button" class="btn btn-outline" onclick="cerrarModal('modal-nueva-sancion')">Cancelar</button>
+        <button type="submit" class="btn btn-azul">Registrar Sanción</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function abrirModal(id) { document.getElementById(id).classList.add('abierto'); }
+function cerrarModal(id) { document.getElementById(id).classList.remove('abierto'); }
+// Solo se ofrecen los préstamos activos del miembro elegido.
+function filtrarPrestamos() {
+  const miembro = document.getElementById('sel-miembro-sancion').value;
+  const sel = document.getElementById('sel-prestamo-sancion');
+  sel.value = '';
+  [...sel.options].forEach(function (o) {
+    if (!o.value) return;
+    o.hidden = !miembro || o.dataset.miembro !== miembro;
+  });
+}
+filtrarPrestamos();
+</script>
+{% endblock %}

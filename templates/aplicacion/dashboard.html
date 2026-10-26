@@ -1,0 +1,205 @@
+{% extends "aplicacion/layout.html" %}
+{% from 'iconos.html' import icono %}
+{% block titulo %}Dashboard — DataBook{% endblock %}
+
+{% block contenido %}
+{# ---------- Encabezado + accesos rápidos ---------- #}
+<div class="dash-encabezado">
+  <div>
+    <h1>Hola, {{ session.usuario_nombre }}</h1>
+    <p>{{ session.get('biblioteca_nombre') or 'Tu biblioteca' }} · {{ today | format_date }}</p>
+  </div>
+  <div class="dash-accesos">
+    {% if has_permission('prestamos', 'editor') %}
+    <a class="btn btn-azul" href="{{ url_for('loans.loans') }}">{{ icono('recargar') }} Nuevo préstamo</a>
+    {% endif %}
+    {% if has_permission('catalogo', 'editor') %}
+    <a class="btn btn-outline" href="{{ url_for('books.catalog') }}">{{ icono('libro') }} Catálogo</a>
+    {% endif %}
+    {% if has_permission('miembros', 'editor') %}
+    <a class="btn btn-outline" href="{{ url_for('members.members') }}">{{ icono('persona-agregar') }} Miembros</a>
+    {% endif %}
+  </div>
+</div>
+
+{# ---------- Biblioteca nueva: guía de primeros pasos ---------- #}
+{% if total_books == 0 %}
+<div class="dash-bienvenida">
+  <div class="dash-bienvenida-icono">{{ icono('coleccion', clase='icono icono-lg') }}</div>
+  <div>
+    <h3>Tu biblioteca está lista para empezar</h3>
+    <p>Aún no hay libros registrados: el catálogo empieza vacío y solo tendrá lo que tú cargues.
+       Agrega tus libros uno a uno o impórtalos desde un Excel en el Catálogo; luego registra
+       a tus miembros y ya podrás prestar.</p>
+  </div>
+  {% if has_permission('catalogo', 'editor') %}
+  <a class="btn btn-azul" href="{{ url_for('books.catalog') }}">Ir al catálogo</a>
+  {% endif %}
+</div>
+{% endif %}
+
+{# ---------- Indicadores principales ---------- #}
+<div class="stats-grid">
+  <div class="stat-card azul">
+    <div class="icono-stat">{{ icono('libro', clase='icono icono-lg') }}</div>
+    <label>Libros (títulos)</label>
+    <div class="valor">{{ "{:,}".format(total_books).replace(",", ".") }}</div>
+    <div class="stat-sub">{{ "{:,}".format(total_copies).replace(",", ".") }} ejemplares en total</div>
+  </div>
+  <div class="stat-card verde">
+    <div class="icono-stat">{{ icono('personas', clase='icono icono-lg') }}</div>
+    <label>Miembros activos</label>
+    <div class="valor">{{ active_members }}</div>
+    <div class="stat-sub">con acceso a préstamos</div>
+  </div>
+  <div class="stat-card naranja">
+    <div class="icono-stat">{{ icono('recargar', clase='icono icono-lg') }}</div>
+    <label>Préstamos activos</label>
+    <div class="valor">{{ active_loans }}</div>
+    <div class="stat-sub">{{ returned_this_month }} devuelto(s) este mes</div>
+  </div>
+  <div class="stat-card rojo">
+    <div class="icono-stat">{{ icono('alerta', clase='icono icono-lg') }}</div>
+    <label>Vencidos</label>
+    <div class="valor">{{ overdue }}</div>
+    <div class="stat-sub">{{ 'requieren seguimiento' if overdue else 'todo al día' }}</div>
+  </div>
+</div>
+
+{% if pending_fines.n > 0 %}
+<div class="aviso-multas">
+  <span>{{ icono('alerta') }} ESTADO DE MULTAS &nbsp; {{ pending_fines.n }} multa(s) pendiente(s)</span>
+  <span class="total">Total acumulado &nbsp; ${{ "{:,.0f}".format(pending_fines.total) }}</span>
+</div>
+{% endif %}
+
+{# ---------- Actividad + disponibilidad ---------- #}
+<div class="dash-fila-principal">
+  <div class="panel">
+    <h3>
+      {{ icono('estadisticas') }} Préstamos por mes
+      <span class="contador-panel">{{ total_activity }} en {{ activity|length }} meses</span>
+    </h3>
+    <div class="dash-barras" role="img" aria-label="Préstamos registrados en los últimos {{ activity|length }} meses">
+      {% for a in activity %}
+      <div class="dash-barra-col {{ 'actual' if a.actual }}" title="{{ a.etiqueta }}: {{ a.total }} préstamo(s)">
+        <span class="dash-barra-valor">{{ a.total }}</span>
+        <div class="dash-barra-pista"><div class="dash-barra" style="height: {{ a.alto }}%"></div></div>
+        <span class="dash-barra-mes">{{ a.etiqueta }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% if total_activity == 0 %}
+    <p class="vacio" style="margin-top:8px;">Aún no hay préstamos en este período.</p>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <h3>{{ icono('coleccion') }} Disponibilidad</h3>
+    <div class="dash-disponibilidad">
+      <div class="dash-donut" style="--pct: {{ borrowed_percentage }};">
+        <div class="dash-donut-centro">
+          <strong>{{ borrowed_percentage }}%</strong>
+          <span>prestado</span>
+        </div>
+      </div>
+      <ul class="dash-leyenda">
+        <li><span class="punto punto-prestado"></span> Prestados <b>{{ borrowed_copies }}</b></li>
+        <li><span class="punto punto-disponible"></span> Disponibles <b>{{ available_copies }}</b></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+{# ---------- Paneles de detalle ---------- #}
+<div class="paneles-grid">
+  <div class="panel">
+    <h3>
+      {{ icono('grafico') }} Libros por categoría
+      {% if books_by_category %}<span class="contador-panel">{{ books_by_category|length }} grupo(s)</span>{% endif %}
+    </h3>
+    {% if books_by_category %}
+      {% set maximo = books_by_category|map(attribute='total')|max %}
+      <div class="grid-categorias">
+        {% for cat in books_by_category %}
+        <div class="categoria-item" title="{{ cat.categoria }}: {{ cat.total }} libro(s)">
+          <div class="categoria-fila">
+            <span class="categoria-nombre">{{ cat.categoria }}</span>
+            <span class="categoria-total">{{ cat.total }}</span>
+          </div>
+          <div class="barra-categoria">
+            <span style="width: {{ ((cat.total / maximo) * 100) | round(0, 'ceil') | int }}%"></span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="vacio">Aún no hay libros registrados.</p>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <h3>{{ icono('libro') }} Más prestados</h3>
+    {% if most_borrowed %}
+      <ol class="dash-ranking">
+        {% for l in most_borrowed %}
+        <li>
+          <span class="dash-puesto">{{ loop.index }}</span>
+          <div class="dash-ranking-texto">
+            <div class="titulo-libro">{{ l.titulo }}</div>
+            <div class="persona">{{ l.autor }}</div>
+          </div>
+          <span class="badge badge-azul">{{ l.veces }}×</span>
+        </li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      <p class="vacio">Cuando registres préstamos, aquí verás los libros más solicitados.</p>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <h3>{{ icono('calendario') }} Vencen en los próximos {{ upcoming_days }} días</h3>
+    {% if upcoming_due %}
+      <ul class="lista-prestamos">
+        {% for p in upcoming_due %}
+        <li>
+          <div>
+            <div class="titulo-libro">{{ p.titulo }}</div>
+            <div class="persona">{{ p.nombre_completo }}</div>
+          </div>
+          <span class="badge badge-naranja">{{ p.fecha_devolucion | format_date }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="vacio">No hay devoluciones programadas para esta semana.</p>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <h3>{{ icono('recargar') }} Préstamos recientes</h3>
+    {% if recent_loans %}
+      <ul class="lista-prestamos">
+        {% for p in recent_loans %}
+        <li>
+          <div>
+            <div class="titulo-libro">{{ p.titulo }}</div>
+            <div class="persona">{{ p.nombre_completo }}</div>
+          </div>
+          {% if p.estado == 'Devuelto' %}
+            <span class="badge badge-verde">Devuelto</span>
+          {% elif p.fecha_devolucion < today %}
+            <span class="badge badge-rojo">Vencido</span>
+          {% else %}
+            <span class="badge badge-azul">Activo</span>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="vacio">Aún no hay préstamos registrados.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
