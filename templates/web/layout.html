@@ -14,15 +14,15 @@
 </head>
 <body>
   <header class="navbar-web {% block navbar_clase %}{% endblock %}">
-    <a href="{{ url_for('auth.login') }}" class="logo">
+    <a href="{{ url_for('index') }}" class="logo">
       {{ logo(26) }} DataBook
     </a>
     <nav>
       <ul>
-        <li><a href="{{ url_for('auth.index') }}">Inicio</a></li>
-        <li><a href="{{ url_for('auth.index') }}#servicios">Servicios</a></li>
-        <li><a href="{{ url_for('auth.index') }}#nosotros">Nosotros</a></li>
-        <li><a href="{{ url_for('auth.index') }}#contacto">Contacto</a></li>
+        <li><a href="{{ url_for('index') }}">Inicio</a></li>
+        <li><a href="{{ url_for('index') }}#servicios">Servicios</a></li>
+        <li><a href="{{ url_for('index') }}#nosotros">Nosotros</a></li>
+        <li><a href="{{ url_for('index') }}#contacto">Contacto</a></li>
       </ul>
     </nav>
     <div class="acciones">
@@ -53,9 +53,9 @@
       <div>
         <h4>Plataforma</h4>
         <ul>
-          <li><a href="{{ url_for('auth.index') }}#servicios">Servicios</a></li>
-          <li><a href="{{ url_for('auth.index') }}#nosotros">Nosotros</a></li>
-          <li><a href="{{ url_for('auth.index') }}">Inicio</a></li>
+          <li><a href="{{ url_for('index') }}#servicios">Servicios</a></li>
+          <li><a href="{{ url_for('index') }}#nosotros">Nosotros</a></li>
+          <li><a href="{{ url_for('index') }}">Inicio</a></li>
         </ul>
       </div>
       <div>
