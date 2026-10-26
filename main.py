@@ -48,10 +48,10 @@ def create_app():
     app.register_blueprint(history_bp)
     app.register_blueprint(team_bp)
 
-    # Ruta raiz del proyecto: cuando alguien entra al dominio los manda al inicio
+   # Ruta raiz del proyecto: cuando alguien entra al dominio los manda al inicio
     @app.route('/')
     def index():
-        return render_template('index.html')
+        return render_template('web/index.html')
 
     return app
 
