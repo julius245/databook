@@ -1,0 +1,132 @@
+{% extends "web/layout.html" %}
+{% from 'iconos.html' import icono %}
+{% block titulo %}DataBook — Gestión de bibliotecas{% endblock %}
+
+{% block contenido %}
+<section class="hero">
+  <div class="hero-grid">
+    <div>
+      <span class="pill">{{ icono('coleccion') }} Sistema de Gestión Bibliotecaria</span>
+      <h1>Gestiona tu biblioteca de forma <span class="naranja">inteligente</span></h1>
+      <p class="lead">
+        DataBook S.A.S. centraliza el control de libros, préstamos, devoluciones
+        y usuarios en una sola plataforma moderna y eficiente.
+      </p>
+      <div class="acciones-hero">
+        <a href="{{ url_for('auth.register') }}" class="btn btn-naranja">Comenzar ahora {{ icono('flecha-der') }}</a>
+        <a href="#servicios" class="btn btn-outline" style="color:#fff;border-color:rgba(255,255,255,0.25);">Conocer más</a>
+      </div>
+      <div class="stats">
+        <div class="stat"><b>10K+</b><span>Libros gestionados</span></div>
+        <div class="stat"><b>500+</b><span>Bibliotecas activas</span></div>
+        <div class="stat"><b>99%</b><span>Satisfacción</span></div>
+      </div>
+    </div>
+
+    <div class="hero-cards">
+      <div class="hero-card">
+        <div class="icono icono-xl">{{ icono('libro') }}</div>
+        <h4>Catálogo Digital</h4>
+        <p>Organiza tu inventario completo con búsqueda avanzada.</p>
+      </div>
+      <div class="hero-card">
+        <div class="icono icono-xl">{{ icono('personas') }}</div>
+        <h4>Miembros</h4>
+        <p>Gestiona estudiantes, profesores e investigadores.</p>
+      </div>
+      <div class="hero-card">
+        <div class="icono icono-xl">{{ icono('grafico') }}</div>
+        <h4>Reportes</h4>
+        <p>Estadísticas en tiempo real de tu biblioteca.</p>
+      </div>
+      <div class="hero-card destacada">
+        <div class="num">24/7</div>
+        <p>Acceso desde cualquier dispositivo, en cualquier momento.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="servicios" id="servicios">
+  <span class="eyebrow">SERVICIOS</span>
+  <h2>Todo lo que necesitas para gestionar tu biblioteca</h2>
+  <p class="desc">Herramientas diseñadas para simplificar la administración bibliotecaria y mejorar la experiencia de tus usuarios.</p>
+
+  <div class="grid-servicios">
+    <div class="tarjeta-servicio">
+      <div class="icono-serv" style="background:var(--naranja-bg);color:var(--naranja-txt);">{{ icono('libro', clase='icono icono-lg') }}</div>
+      <h3>Gestión de Catálogo</h3>
+      <p>Registra, clasifica y organiza todos los libros de tu biblioteca con ISBN, categorías, ubicación y estado del inventario.</p>
+    </div>
+    <div class="tarjeta-servicio">
+      <div class="icono-serv" style="background:var(--verde-bg);color:var(--verde-txt);">{{ icono('personas', clase='icono icono-lg') }}</div>
+      <h3>Control de Miembros</h3>
+      <p>Administra estudiantes, profesores, investigadores y usuarios externos con perfiles completos y estados de cuenta.</p>
+    </div>
+    <div class="tarjeta-servicio">
+      <div class="icono-serv" style="background:#dcfce7;color:#16a34a;">{{ icono('recargar', clase='icono icono-lg') }}</div>
+      <h3>Préstamos y Devoluciones</h3>
+      <p>Registra préstamos, controla fechas de vencimiento y gestiona devoluciones con actualización automática del inventario.</p>
+    </div>
+    <div class="tarjeta-servicio">
+      <div class="icono-serv" style="background:#ede9fe;color:#7c3aed;">{{ icono('grafico', clase='icono icono-lg') }}</div>
+      <h3>Dashboard en Tiempo Real</h3>
+      <p>Visualiza estadísticas clave: libros disponibles, préstamos activos, devoluciones pendientes y más en un panel intuitivo.</p>
+    </div>
+    <div class="tarjeta-servicio">
+      <div class="icono-serv" style="background:var(--rojo-bg);color:var(--rojo-txt);">{{ icono('escudo', clase='icono icono-lg') }}</div>
+      <h3>Acceso Seguro</h3>
+      <p>Sistema de autenticación con roles de administrador y bibliotecario para proteger la información de tu institución.</p>
+    </div>
+    <div class="tarjeta-servicio">
+      <div class="icono-serv" style="background:var(--azul-bg);color:var(--azul-txt);">{{ icono('buscar', clase='icono icono-lg') }}</div>
+      <h3>Búsqueda Avanzada</h3>
+      <p>Encuentra cualquier libro, miembro o préstamo al instante con filtros por categoría, estado y más criterios.</p>
+    </div>
+  </div>
+</section>
+
+<section class="nosotros" id="nosotros">
+  <div class="nosotros-grid">
+    <div>
+      <span class="eyebrow" style="color:var(--naranja);font-size:0.78rem;font-weight:700;">SOBRE NOSOTROS</span>
+      <h2>Transformamos la gestión de bibliotecas</h2>
+      <p>
+        DataBook S.A.S. nació de la necesidad de modernizar la administración
+        bibliotecaria. Muchas instituciones siguen usando registros en papel,
+        hojas de cálculo desactualizadas y procesos manuales que generan
+        errores y pérdida de información.
+      </p>
+      <p>
+        Nuestra plataforma centraliza todo en un solo lugar: catálogo de
+        libros, gestión de miembros, control de préstamos y reportes,
+        permitiendo que las bibliotecas se enfoquen en lo que realmente
+        importa — fomentar la lectura y el conocimiento.
+      </p>
+      <ul class="lista-check">
+        <li><span class="check">{{ icono('check') }}</span> Reduce el tiempo de gestión hasta un 80%</li>
+        <li><span class="check">{{ icono('check') }}</span> Elimina el registro manual en papel</li>
+        <li><span class="check">{{ icono('check') }}</span> Control de inventario en tiempo real</li>
+        <li><span class="check">{{ icono('check') }}</span> Detección automática de préstamos vencidos</li>
+        <li><span class="check">{{ icono('check') }}</span> Acceso desde cualquier dispositivo</li>
+        <li><span class="check">{{ icono('check') }}</span> Reportes y estadísticas instantáneas</li>
+      </ul>
+    </div>
+
+    <div class="mision-card">
+      <h3>Nuestra Misión</h3>
+      <p>
+        Proveer una herramienta tecnológica accesible y moderna que permita
+        a las bibliotecas de toda Latinoamérica gestionar sus recursos de
+        manera eficiente, organizada y confiable.
+      </p>
+      <div class="metricas">
+        <div><b>5+</b><span>Años de experiencia</span></div>
+        <div><b>100%</b><span>En la nube</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="contacto"></section>
+{% endblock %}

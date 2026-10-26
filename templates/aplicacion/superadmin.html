@@ -1,0 +1,78 @@
+{% from 'iconos.html' import icono %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel Superadmin — DataBook</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap/bootstrap.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="app-sidebar">
+      <div class="brand">
+        {{ icono('libro') }} DataBook <span style="color:#f5a623;">Superadmin</span>
+      </div>
+      <nav>
+        <a href="{{ url_for('superadmin.panel') }}" class="activo">{{ icono('institucion') }} Bibliotecas</a>
+      </nav>
+      <div class="pie-sidebar">
+        <a href="{{ url_for('auth.logout') }}" class="salir">⏻ Cerrar sesión</a>
+      </div>
+    </aside>
+
+    <main class="app-content">
+      {% with mensajes = get_flashed_messages(with_categories=true) %}
+        {% if mensajes %}
+          {% for categoria, mensaje in mensajes %}
+            <div class="flash flash-{{ categoria }}">{{ mensaje }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      <div class="app-header-row">
+        <div>
+          <h1>Bibliotecas registradas</h1>
+          <p>{{ libraries|length }} cuenta(s) de tipo staff</p>
+        </div>
+      </div>
+
+      <div class="tabla-wrap">
+        <table class="tabla-datos">
+          <thead>
+            <tr>
+              <th>Nombre</th><th>Correo</th><th>Bibliotecarios</th><th>Estado</th><th>Registrada</th><th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for b in libraries %}
+            <tr>
+              <td>{{ b.nombre }}</td>
+              <td>{{ b.email }}</td>
+              <td>{{ b.total_bibliotecarios }}</td>
+              <td><span class="badge {{ 'badge-verde' if b.estado == 'Activo' else 'badge-rojo' }}">{{ b.estado }}</span></td>
+              <td>{{ b.fecha_registro | format_date }}</td>
+              <td>
+                <form method="POST" action="{{ url_for('superadmin.restrict_staff', staff_id=b.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" title="{{ 'Restringir' if b.estado == 'Activo' else 'Reactivar' }}">
+                    {{ icono('bloqueado') if b.estado == 'Activo' else icono('verificado') }}
+                  </button>
+                </form>
+                <form method="POST" action="{{ url_for('superadmin.delete_staff', staff_id=b.id) }}" onsubmit="return confirm('¿Eliminar la biblioteca \'' + '{{ b.nombre }}' + '\' de forma permanente? Se borrarán TODOS sus libros, miembros, préstamos, multas y bibliotecarios. Esta acción no se puede deshacer.');" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" title="Eliminar biblioteca">{{ icono('papelera') }}</button>
+                </form>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="vacio">Todavía no hay bibliotecas registradas.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

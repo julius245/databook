@@ -1,0 +1,48 @@
+{% extends "aplicacion/layout.html" %}
+{% from 'iconos.html' import icono %}
+{% block titulo %}Avisos de préstamos — DataBook{% endblock %}
+
+{% block contenido %}
+<div class="app-header-row">
+  <div>
+    <h1>Avisos de préstamos</h1>
+    <p>Recordatorios por correo de préstamos por vencer o vencidos</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn btn-outline" href="{{ url_for('loans.loans') }}">Volver a Préstamos</a>
+    {% if has_permission('prestamos', 'editor') %}
+    <form method="POST" action="{{ url_for('loans.send_notifications') }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-azul">{{ icono('correo') }} Enviar recordatorios ahora</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+{% if not smtp_configured %}
+<div class="reglas-multas">
+  <h4>{{ icono('alerta') }} Correo no configurado</h4>
+  <ul><li>Sin <code>SMTP_HOST</code> los avisos no salen por correo: se escriben en el log del servidor y aquí quedan registrados igualmente.</li></ul>
+</div>
+{% endif %}
+
+<div class="tabla-wrap">
+  <table class="tabla-datos">
+    <thead><tr><th>Fecha</th><th>Tipo</th><th>Miembro</th><th>Correo</th><th>Libro</th><th>Préstamo</th></tr></thead>
+    <tbody>
+      {% for n in notices %}
+      <tr>
+        <td>{{ n.fecha_envio|format_date }}</td>
+        <td>{% if n.tipo == 'vencido' %}<span class="badge badge-rojo">Vencido</span>{% else %}<span class="badge badge-azul">Por vencer</span>{% endif %}</td>
+        <td>{{ n.miembro_nombre }}</td>
+        <td class="subtexto">{{ n.email or '—' }}</td>
+        <td>{{ n.libro_titulo }}</td>
+        <td>#{{ n.prestamo_id }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="vacio">Aún no se ha enviado ningún aviso.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

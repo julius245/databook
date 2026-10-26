@@ -1,0 +1,142 @@
+{% from 'iconos.html' import icono, logo %}
+<!DOCTYPE html>
+<html lang="es" data-tema="{{ session.get('tema') or 'sistema' }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block titulo %}DataBook{% endblock %}</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap/bootstrap.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="app-sidebar" id="sidebar">
+      <div class="brand">
+        {{ logo(26) }} <span class="texto-link">DataBook</span>
+      </div>
+      <nav>
+        <a href="{{ url_for('dashboard.view_dashboard') }}" class="{{ 'activo' if request.endpoint == 'dashboard.view_dashboard' }}" title="Dashboard">{{ icono('grafico') }} <span class="texto-link">Dashboard</span></a>
+        {% if session.rol != 'bibliotecario' or 'catalogo' in session.get('modulos', []) %}
+        <a href="{{ url_for('books.catalog') }}" class="{{ 'activo' if request.endpoint and request.endpoint.startswith('books.') }}" title="Catálogo">{{ icono('libro') }} <span class="texto-link">Catálogo</span></a>
+        {% endif %}
+        {% if session.rol != 'bibliotecario' or 'miembros' in session.get('modulos', []) %}
+        <a href="{{ url_for('members.members') }}" class="{{ 'activo' if request.endpoint and request.endpoint.startswith('members.') }}" title="Miembros">{{ icono('personas') }} <span class="texto-link">Miembros</span></a>
+        {% endif %}
+        {% if session.rol != 'bibliotecario' or 'prestamos' in session.get('modulos', []) %}
+        <a href="{{ url_for('loans.loans') }}" class="{{ 'activo' if request.endpoint and request.endpoint.startswith('loans.') }}" title="Préstamos">{{ icono('recargar') }} <span class="texto-link">Préstamos</span></a>
+        {% endif %}
+        {% if session.rol != 'bibliotecario' or 'multas' in session.get('modulos', []) %}
+        <a href="{{ url_for('fines.fines') }}" class="{{ 'activo' if request.endpoint and request.endpoint.startswith('fines.') }}" title="Multas">{{ icono('alarma') }} <span class="texto-link">Multas</span></a>
+        {% endif %}
+        {% if session.rol != 'bibliotecario' or 'multas' in session.get('modulos', []) %}
+        <a href="{{ url_for('sanctions.sanctions') }}" class="{{ 'activo' if request.endpoint and request.endpoint.startswith('sanctions.') }}" title="Sanciones">{{ icono('escudo') }} <span class="texto-link">Sanciones</span></a>
+        {% endif %}
+        {% if session.rol != 'bibliotecario' or 'prestamos' in session.get('modulos', []) or 'multas' in session.get('modulos', []) %}
+        <a href="{{ url_for('history.history') }}" class="{{ 'activo' if request.endpoint and request.endpoint.startswith('history.') }}" title="Historial">{{ icono('calendario') }} <span class="texto-link">Historial</span></a>
+        {% endif %}
+        {% if session.rol == 'staff' or session.rol == 'superadmin' or 'prestamos' in session.get('modulos', []) or 'multas' in session.get('modulos', []) or 'catalogo' in session.get('modulos', []) or 'miembros' in session.get('modulos', []) %}
+        <a href="{{ url_for('reports.reports') }}" class="{{ 'activo' if request.endpoint and request.endpoint.startswith('reports.') }}" title="Reportes">{{ icono('estadisticas') }} <span class="texto-link">Reportes</span></a>
+        {% endif %}
+        {% if session.rol == 'staff' %}
+        <a href="{{ url_for('team.team') }}" class="{{ 'activo' if request.endpoint and request.endpoint.startswith('team.') }}" title="Mi Equipo">{{ icono('personas-lleno') }} <span class="texto-link">Mi Equipo</span></a>
+        {% endif %}
+      </nav>
+      <div class="pie-sidebar">
+        <div class="perfil-sidebar-card" style="position:relative;">
+          <button type="button" onclick="togglePerfil()" class="perfil-sidebar-trigger" title="{{ session.usuario_nombre }}">
+            <div class="perfil-mini-avatar">{{ (session.usuario_nombre or 'U')[:1].upper() }}</div>
+            <div class="perfil-meta">
+              <strong>{{ session.usuario_nombre }}</strong>
+              <small>{{ session.get('biblioteca_nombre') or 'Biblioteca' }}</small>
+            </div>
+            <span id="flecha-perfil" class="flecha-perfil">▾</span>
+          </button>
+          <div id="menu-perfil" class="perfil-menu">
+            <a href="{{ url_for('auth.profile') }}">{{ icono('ojo') }} Ver mi perfil</a>
+            <a href="{{ url_for('auth.settings') }}">{{ icono('engranaje') }} Ajustes</a>
+          </div>
+        </div>
+        <a href="#" id="btn-colapsar" title="Desplegar"><span id="icono-colapsar">‹</span> <span class="texto-link">Desplegar</span></a>
+        <a href="{{ url_for('auth.logout') }}" class="salir" title="Cerrar sesión">⏻ <span class="texto-link">Cerrar sesión</span></a>
+      </div>
+    </aside>
+
+    <main class="app-content">
+      {% with mensajes = get_flashed_messages(with_categories=true) %}
+        {% if mensajes %}
+          {% for categoria, mensaje in mensajes %}
+            <div class="flash flash-{{ categoria }}">{{ mensaje }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      {% block contenido %}{% endblock %}
+    </main>
+  </div>
+
+  {% block modales %}{% endblock %}
+
+  <!-- Script global para interacción de modales -->
+  <script>
+    function abrirModal(id) {
+      const modal = document.getElementById(id);
+      if (modal) modal.classList.add('abierto');
+    }
+
+    function cerrarModal(id) {
+      const modal = document.getElementById(id);
+      if (modal) modal.classList.remove('abierto');
+    }
+
+    // Los modales (.overlay-modal) solo se cierran con el botón "X" o
+    // "Cancelar" de cada uno (que llaman a cerrarModal explícitamente).
+    // A propósito NO se cierran al hacer clic fuera (backdrop) ni con la
+    // tecla Escape, para evitar que se pierda información cargada en el
+    // formulario por un clic o tecla accidental.
+    window.onclick = function(e) {
+      const menu = document.getElementById('menu-perfil');
+      const flecha = document.getElementById('flecha-perfil');
+      if (menu && menu.style.display === 'block' && !e.target.closest('.pie-sidebar')) {
+        menu.style.display = 'none';
+        if (flecha) flecha.textContent = '▾';
+      }
+    };
+
+    function togglePerfil() {
+      const menu = document.getElementById('menu-perfil');
+      const flecha = document.getElementById('flecha-perfil');
+      const abierto = menu.style.display === 'block';
+      menu.style.display = abierto ? 'none' : 'block';
+      if (flecha) flecha.textContent = abierto ? '▾' : '▴';
+    }
+
+    // Colapsar / expandir el sidebar, recordando la preferencia del usuario.
+    (function () {
+      const sidebar = document.getElementById('sidebar');
+      const btn = document.getElementById('btn-colapsar');
+      const icono = document.getElementById('icono-colapsar');
+      if (!sidebar || !btn) return;
+
+      function aplicarEstado(colapsado) {
+        sidebar.classList.toggle('colapsado', colapsado);
+        if (icono) icono.textContent = colapsado ? '›' : '‹';
+      }
+
+      aplicarEstado(localStorage.getItem('sidebar-colapsado') === '1');
+
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        const nuevoEstado = !sidebar.classList.contains('colapsado');
+        aplicarEstado(nuevoEstado);
+        localStorage.setItem('sidebar-colapsado', nuevoEstado ? '1' : '0');
+      });
+    })();
+  </script>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>
