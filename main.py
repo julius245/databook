@@ -1,7 +1,7 @@
 # Hola, este es el archivo principal donde arranca toda la aplicacion web de Flask.
 # Aqui conectamos las configuraciones, la base de datos y los controladores.
 
-from flask import Flask, app, render_template, redirect, url_for, session, flash
+from flask import Flask, render_template, redirect, url_for, session, flash
 from config import Config
 from models.database import init_db
 import os
@@ -48,15 +48,16 @@ def create_app():
     app.register_blueprint(history_bp)
     app.register_blueprint(team_bp)
 
-    # Ruta raiz del proyecto: cuando alguien entra al dominio los manda al inicio publico
- # Ruta raiz del proyecto: cuando alguien entra al dominio los manda al inicio
+    # Ruta raiz del proyecto: cuando alguien entra al dominio los manda al inicio
     @app.route('/')
     def index():
         return render_template('index.html')
 
-# Se crea la aplicacion principal
-    app = create_app()
+    return app
+
+# Se crea la aplicacion principal para Gunicorn y producción
+app = create_app()
 
 # Para ejecutar el servidor local en modo desarrollo
-    if __name__ == '__main__':
-        app.run(debug=True, host='0.0.0.0', port=5000)
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)
