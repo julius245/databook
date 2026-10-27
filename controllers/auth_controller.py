@@ -29,15 +29,42 @@ def login():
             
     return render_template('web/login.html')
 
-# Ruta para recuperar/cambiar contraseña (Soluciona el error de url_for)
+# Ruta para el registro de nuevos usuarios (Soluciona el error actual)
+@auth_bp.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        nombre = request.form.get('nombre')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        
+        hashed_pw = hash_password(password)
+        
+        conn = _connect()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "INSERT INTO usuarios (nombre, email, password, rol) VALUES (%s, %s, %s, %s)",
+                (nombre, email, hashed_pw, 'usuario')
+            )
+            conn.commit()
+            flash("Registro exitoso. Ahora puedes iniciar sesión.", "success")
+            return redirect(url_for('auth.login'))
+        except Exception as e:
+            conn.rollback()
+            flash("Error al registrar o el correo ya está registrado.", "danger")
+        finally:
+            conn.close()
+            
+    return render_template('web/register.html')
+
+# Ruta para recuperar/cambiar contraseña
 @auth_bp.route('/change-password', methods=['GET', 'POST'])
 def change_password():
     if request.method == 'POST':
-        # Aquí puedes implementar tu lógica de cambio de contraseña más adelante
         flash("Funcionalidad de cambio de contraseña en desarrollo", "info")
         return redirect(url_for('auth.login'))
     
-    return render_template('web/change_password.html') # O puedes renderizar un template si lo tienes
+    return render_template('web/change_password.html')
 
 # Cierra la sesion del usuario
 @auth_bp.route('/logout')
