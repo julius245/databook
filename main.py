@@ -2,17 +2,22 @@
 # Aqui conectamos las configuraciones, la base de datos y los controladores.
 
 from flask import Flask, render_template, redirect, url_for, session, flash
+from flask_wtf.csrf import CSRFProtect
 from config import Config
 from models.database import init_db
 import os
 
 # Esta funcion arma y configura nuestra aplicacion web
+
 def create_app():
     # Inicializamos Flask indicando donde estan nuestras plantillas HTML y archivos estaticos
     app = Flask(__name__, template_folder='templates', static_folder='static')
-    
+
     # Cargamos los parametros de configuracion desde la clase Config
     app.config.from_object(Config)
+    
+    # Inicializamos la proteccion CSRF vinculándola a la aplicación Flask
+    csrf = CSRFProtect(app)
     
     # Verificamos e inicializamos la conexion a la base de datos al arrancar
     with app.app_context():
