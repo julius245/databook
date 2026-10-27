@@ -175,15 +175,12 @@
     document.getElementById('form-registro-wizard').dataset.pasoActual = String(destino);
   }
 
-  // Valida solo los campos del paso visible. Si se dejara todo para el submit,
-  // un campo inválido de un paso oculto fallaría sin avisar (el navegador no
-  // puede enfocar lo que está escondido).
   function siguientePaso(pasoActual) {
     const form = document.getElementById('form-registro-wizard');
     const step = form.querySelector('.wizard-step[data-step="' + pasoActual + '"]');
     if (!step) return;
     const inputs = step.querySelectorAll('input, select');
-    for (const input of inputs) {
+    for (const input of inputs) {   
       if (!input.checkValidity()) {
         input.reportValidity();
         return;
@@ -191,28 +188,3 @@
     }
     cambiarPaso(pasoActual, pasoActual + 1);
   }
-
-  // Enter avanza de paso en lugar de enviar el formulario incompleto.
-  document.getElementById('form-registro-wizard').addEventListener('keydown', function (e) {
-    if (e.key !== 'Enter' || e.target.tagName === 'BUTTON') return;
-    const paso = Number(this.dataset.pasoActual || 1);
-    if (paso < 3) { e.preventDefault(); siguientePaso(paso); }
-  });
-
-  // Las contraseñas deben coincidir (el servidor lo vuelve a comprobar).
-  document.getElementById('form-registro-wizard').addEventListener('submit', function (e) {
-    const p1 = document.getElementById('password');
-    const p2 = document.getElementById('confirmar_password');
-    p2.setCustomValidity(p1.value !== p2.value ? 'Las contraseñas no coinciden.' : '');
-    if (!p2.checkValidity()) { e.preventDefault(); p2.reportValidity(); }
-  });
-  document.getElementById('confirmar_password').addEventListener('input', function () { this.setCustomValidity(''); });
-
-  // Si el servidor devolvió un error, se abre el paso que lo causó.
-  cambiarPaso(1, {{ initial_step }});
-
-  function volverPaso(pasoActual) {
-    cambiarPaso(pasoActual, pasoActual - 1);
-  }
-</script>
-{% endblock %}
