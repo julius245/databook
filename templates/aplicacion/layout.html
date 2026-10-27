@@ -19,7 +19,7 @@
         {{ logo(26) }} <span class="texto-link">DataBook</span>
       </div>
       <nav>
-        <a href="{{ url_for('dashboard.view_dashboard') }}" class="{{ 'activo' if request.endpoint == 'dashboard.view_dashboard' }}" title="Dashboard">{{ icono('grafico') }} <span class="texto-link">Dashboard</span></a>
+        <a href="{{ url_for('dashboard.index') }}" class="{{ 'activo' if request.endpoint == 'dashboard.index' }}" title="Dashboard">{{ icono('grafico') }} <span class="texto-link">Dashboard</span></a>
         {% if session.rol != 'bibliotecario' or 'catalogo' in session.get('modulos', []) %}
         <a href="{{ url_for('books.catalog') }}" class="{{ 'activo' if request.endpoint and request.endpoint.startswith('books.') }}" title="Catálogo">{{ icono('libro') }} <span class="texto-link">Catálogo</span></a>
         {% endif %}
