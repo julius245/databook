@@ -1,5 +1,6 @@
 {% extends "web/layout.html" %}
 {% from 'iconos.html' import icono, logo %}
+
 {% block titulo %}Crear cuenta — DataBook{% endblock %}
 {% block navbar_clase %}claro{% endblock %}
 {% block footer %}{% endblock %}
@@ -20,145 +21,113 @@
   </div>
 
   <div class="auth-form-side">
-  <div class="auth-box">
-    <a href="{{ url_for('auth.login') }}" class="volver">{{ icono('flecha-izq') }} Volver al inicio</a>
-    <div class="icono-auth">{{ icono('persona-agregar', clase='icono icono-lg') }}</div>
-    <h1>Crear tu cuenta</h1>
-    <p class="subt">Regístrate para comenzar</p>
+    <div class="auth-box">
+      <a href="{{ url_for('auth.login') }}" class="volver">{{ icono('flecha-izq') }} Volver al inicio</a>
+      <div class="icono-auth">{{ icono('persona-agregar', clase='icono icono-lg') }}</div>
+      <h1>Crear tu cuenta</h1>
+      <p class="subt">Regístrate para comenzar</p>
 
-    <div class="auth-card">
-      <button type="button" class="btn-google">{{ icono('circulo-lleno', clase='icono') }} Continuar con Google</button>
-      <div class="separador">o</div>
+      <div class="auth-card">
+        <form method="POST" action="{{ url_for('auth.register') }}" autocomplete="off" id="form-registro-wizard" data-paso-actual="{{ initial_step }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          
+          <div class="wizard-steps">
+            <div class="wizard-step-indicator activo">1. Biblioteca</div>
+            <div class="wizard-step-indicator">2. Datos</div>
+            <div class="wizard-step-indicator">3. Seguridad</div>
+          </div>
 
-      <form method="POST" action="{{ url_for('auth.register') }}" autocomplete="off" id="form-registro-wizard">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="wizard-steps">
-          <div class="wizard-step-indicator activo">1. Biblioteca</div>
-          <div class="wizard-step-indicator">2. Datos</div>
-          <div class="wizard-step-indicator">3. Seguridad</div>
-        </div>
-
-        <div class="wizard-step activo" data-step="1">
-          <div class="campo">
-            <label for="biblioteca_nombre">Nombre de la biblioteca *</label>
-            <input type="text" id="biblioteca_nombre" name="biblioteca_nombre" placeholder="Ej: Biblioteca Central" autocomplete="off" maxlength="150" value="{{ data.get('biblioteca_nombre', '') }}" required>
-          </div>
-          <div class="campo">
-            <label for="biblioteca_direccion">Dirección de la biblioteca *</label>
-            <input type="text" id="biblioteca_direccion" name="biblioteca_direccion" placeholder="Ej: Calle 10 # 5-20, Bogotá" autocomplete="off" maxlength="255" value="{{ data.get('biblioteca_direccion', '') }}" required>
-          </div>
-          <div class="campo">
-            <label for="biblioteca_pais">País *</label>
-            <select id="biblioteca_pais" name="biblioteca_pais" required>
-              <option value="">Selecciona un país</option>
-              {% for c in countries %}
-              <option value="{{ c }}" {{ 'selected' if (data.get('biblioteca_pais') or 'Colombia') == c }}>{{ c }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="campo">
-            <label for="biblioteca_ciudad">Ciudad *</label>
-            <input type="text" id="biblioteca_ciudad" name="biblioteca_ciudad" placeholder="Ej: Bogotá" autocomplete="off" maxlength="120" value="{{ data.get('biblioteca_ciudad', '') }}" required>
-          </div>
-          <div class="campo">
-            <label for="biblioteca_zona_horaria">Zona horaria *</label>
-            <select id="biblioteca_zona_horaria" name="biblioteca_zona_horaria" required>
-              <option value="">Selecciona una zona horaria</option>
-              {% for value, label in timezones %}
-              <option value="{{ value }}" {{ 'selected' if (data.get('biblioteca_zona_horaria') or 'America/Bogota') == value }}>{{ label }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="campo">
-            <label for="biblioteca_latitud">Latitud (opcional)</label>
-            <input type="text" id="biblioteca_latitud" name="biblioteca_latitud" placeholder="Ej: 4.710989" autocomplete="off" value="{{ data.get('biblioteca_latitud', '') }}">
-          </div>
-          <div class="campo">
-            <label for="biblioteca_longitud">Longitud (opcional)</label>
-            <input type="text" id="biblioteca_longitud" name="biblioteca_longitud" placeholder="Ej: -74.072092" autocomplete="off" value="{{ data.get('biblioteca_longitud', '') }}">
-          </div>
-          <div class="wizard-actions">
-            <span></span>
-            <button type="button" class="btn btn-azul" onclick="siguientePaso(1)">Siguiente</button>
-          </div>
-        </div>
-
-        <div class="wizard-step" data-step="2">
-          <div class="campo">
-            <label for="primer_nombre">Primer nombre *</label>
-            <input type="text" id="primer_nombre" name="primer_nombre" placeholder="Primer nombre" autocomplete="off" maxlength="100" value="{{ data.get('primer_nombre', '') }}" required>
-          </div>
-          <div class="campo">
-            <label for="segundo_nombre">Segundo nombre</label>
-            <input type="text" id="segundo_nombre" name="segundo_nombre" placeholder="Segundo nombre (opcional)" autocomplete="off" maxlength="100" value="{{ data.get('segundo_nombre', '') }}">
-          </div>
-          <div class="campo">
-            <label for="primer_apellido">Primer apellido *</label>
-            <input type="text" id="primer_apellido" name="primer_apellido" placeholder="Primer apellido" autocomplete="off" maxlength="100" value="{{ data.get('primer_apellido', '') }}" required>
-          </div>
-          <div class="campo">
-            <label for="segundo_apellido">Segundo apellido *</label>
-            <input type="text" id="segundo_apellido" name="segundo_apellido" placeholder="Segundo apellido" autocomplete="off" maxlength="100" value="{{ data.get('segundo_apellido', '') }}" required>
-          </div>
-          <div class="campo">
-            <label for="tipo_documento">Tipo de documento *</label>
-            <select id="tipo_documento" name="tipo_documento" required>
-              <option value="">Selecciona una opción</option>
-              {% for t in document_types %}
-              <option value="{{ t }}" {{ 'selected' if data.get('tipo_documento') == t }}>{{ t }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="campo">
-            <label for="numero_documento">Número de documento *</label>
-            <input type="text" id="numero_documento" name="numero_documento" placeholder="Ej: 1234567890" value="{{ data.get('numero_documento', '') }}"
-                   autocomplete="off" inputmode="numeric"
-                   minlength="8" maxlength="10" pattern="[0-9]{8,10}"
-                   title="Debe tener entre 8 y 10 dígitos numéricos."
-                   oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)"
-                   required>
-          </div>
-          <div class="campo">
-            <label for="telefono">Teléfono</label>
-            <input type="tel" id="telefono" name="telefono" placeholder="Ej: 3001234567" autocomplete="off" value="{{ data.get('telefono', '') }}"
-                   inputmode="numeric" maxlength="10" pattern="[0-9]{7,10}" title="Entre 7 y 10 dígitos."
-                   oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)">
-          </div>
-          <div class="wizard-actions">
-            <button type="button" class="btn btn-outline" onclick="volverPaso(2)">Atrás</button>
-            <button type="button" class="btn btn-azul" onclick="siguientePaso(2)">Siguiente</button>
-          </div>
-        </div>
-
-        <div class="wizard-step" data-step="3">
-          <div class="campo">
-            <label for="email">Correo electrónico</label>
-            <input type="email" id="email" name="email" placeholder="tu@ejemplo.com" autocomplete="off" value="{{ data.get('email', '') }}" required>
-          </div>
-          <div class="campo">
-            <label for="password">Contraseña</label>
-            <div style="position:relative;">
-              <input type="password" id="password" name="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password" minlength="6" required style="width:100%;">
-              <span id="icono-password" onclick="togglePassword('password','icono-password')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;">{{ icono('ojo') }}</span>
+          <!-- Paso 1: Biblioteca (Aquí seleccionas país y zona horaria) -->
+          <div class="wizard-step activo" data-step="1">
+            <div class="campo">
+              <label for="biblioteca_nombre">Nombre de la biblioteca *</label>
+              <input type="text" id="biblioteca_nombre" name="biblioteca_nombre" placeholder="Ej: Biblioteca Central" autocomplete="off" maxlength="150" value="{{ data.get('biblioteca_nombre', '') }}" required>
+            </div>
+            <div class="campo">
+              <label for="biblioteca_direccion">Dirección de la biblioteca *</label>
+              <input type="text" id="biblioteca_direccion" name="biblioteca_direccion" placeholder="Ej: Calle 10 # 5-20, Bogotá" autocomplete="off" maxlength="255" value="{{ data.get('biblioteca_direccion', '') }}" required>
+            </div>
+            <div class="campo">
+              <label for="biblioteca_pais">País *</label>
+              <select id="biblioteca_pais" name="biblioteca_pais" required>
+                <option value="">Selecciona un país</option>
+                {% for c in countries %}
+                <option value="{{ c }}" {{ 'selected' if (data.get('biblioteca_pais') or 'Colombia') == c }}>{{ c }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="campo">
+              <label for="biblioteca_ciudad">Ciudad *</label>
+              <input type="text" id="biblioteca_ciudad" name="biblioteca_ciudad" placeholder="Ej: Bogotá" autocomplete="off" maxlength="120" value="{{ data.get('biblioteca_ciudad', '') }}" required>
+            </div>
+            <div class="campo">
+              <label for="biblioteca_zona_horaria">Zona horaria *</label>
+              <select id="biblioteca_zona_horaria" name="biblioteca_zona_horaria" required>
+                <option value="">Selecciona una zona horaria</option>
+                {% for value, label in timezones %}
+                <option value="{{ value }}" {{ 'selected' if (data.get('biblioteca_zona_horaria') or 'America/Bogota') == value }}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="wizard-actions">
+              <span></span>
+              <button type="button" class="btn btn-azul" onclick="siguientePaso(1)">Siguiente</button>
             </div>
           </div>
-          <div class="campo">
-            <label for="confirmar_password">Confirmar contraseña</label>
-            <div style="position:relative;">
-              <input type="password" id="confirmar_password" name="confirmar_password" placeholder="••••••••" autocomplete="new-password" required style="width:100%;">
-              <span id="icono-confirmar" onclick="togglePassword('confirmar_password','icono-confirmar')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;">{{ icono('ojo') }}</span>
+
+          <!-- Paso 2: Datos del Usuario -->
+          <div class="wizard-step" data-step="2" style="display:none;">
+            <div class="campo">
+              <label for="primer_nombre">Primer nombre *</label>
+              <input type="text" id="primer_nombre" name="primer_nombre" placeholder="Primer nombre" autocomplete="off" maxlength="100" value="{{ data.get('primer_nombre', '') }}">
+            </div>
+            <div class="campo">
+              <label for="primer_apellido">Primer apellido *</label>
+              <input type="text" id="primer_apellido" name="primer_apellido" placeholder="Primer apellido" autocomplete="off" maxlength="100" value="{{ data.get('primer_apellido', '') }}">
+            </div>
+            <div class="campo">
+              <label for="segundo_apellido">Segundo apellido *</label>
+              <input type="text" id="segundo_apellido" name="segundo_apellido" placeholder="Segundo apellido" autocomplete="off" maxlength="100" value="{{ data.get('segundo_apellido', '') }}">
+            </div>
+            <div class="campo">
+              <label for="tipo_documento">Tipo de documento *</label>
+              <select id="tipo_documento" name="tipo_documento">
+                <option value="">Selecciona una opción</option>
+                {% for t in document_types %}
+                <option value="{{ t }}" {{ 'selected' if data.get('tipo_documento') == t }}>{{ t }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="campo">
+              <label for="numero_documento">Número de documento *</label>
+              <input type="text" id="numero_documento" name="numero_documento" placeholder="Ej: 1234567890" value="{{ data.get('numero_documento', '') }}" autocomplete="off">
+            </div>
+            <div class="wizard-actions">
+              <button type="button" class="btn btn-outline" onclick="volverPaso(2)">Atrás</button>
+              <button type="button" class="btn btn-azul" onclick="siguientePaso(2)">Siguiente</button>
             </div>
           </div>
-          <div class="wizard-actions">
-            <button type="button" class="btn btn-outline" onclick="volverPaso(3)">Atrás</button>
-            <button type="submit" class="btn btn-azul btn-block">Crear cuenta</button>
+
+          <!-- Paso 3: Seguridad -->
+          <div class="wizard-step" data-step="3" style="display:none;">
+            <div class="campo">
+              <label for="email">Correo electrónico</label>
+              <input type="email" id="email" name="email" placeholder="tu@ejemplo.com" autocomplete="off" value="{{ data.get('email', '') }}">
+            </div>
+            <div class="campo">
+              <label for="password">Contraseña</label>
+              <input type="password" id="password" name="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password" minlength="6">
+            </div>
+            <div class="wizard-actions">
+              <button type="button" class="btn btn-outline" onclick="volverPaso(3)">Atrás</button>
+              <button type="submit" class="btn btn-azul btn-block">Crear cuenta</button>
+            </div>
           </div>
-        </div>
-      </form>
+        </form>
+      </div>
+
+      <p class="auth-pie">¿Ya tienes cuenta? <a href="{{ url_for('auth.login') }}">Iniciar sesión</a></p>
     </div>
-
-    <p class="auth-pie">¿Ya tienes cuenta? <a href="{{ url_for('auth.login') }}">Iniciar sesión</a></p>
-  </div>
   </div>
 </div>
 
@@ -166,16 +135,36 @@
   function cambiarPaso(pasoActual, destino) {
     const steps = document.querySelectorAll('.wizard-step');
     const indicators = document.querySelectorAll('.wizard-step-indicator');
+    
     steps.forEach((step) => {
-      step.classList.toggle('activo', Number(step.dataset.step) === destino);
+      const esDestino = Number(step.dataset.step) === destino;
+      step.classList.toggle('activo', esDestino);
+      step.style.display = esDestino ? 'block' : 'none';
     });
+
     indicators.forEach((indicator, index) => {
       indicator.classList.toggle('activo', index + 1 === destino);
     });
-    document.getElementById('form-registro-wizard').dataset.pasoActual = String(destino);
   }
 
- function volverPaso(pasoActual) {
+  function siguientePaso(pasoActual) {
+    const contenedorPaso = document.querySelector(`.wizard-step[data-step="${pasoActual}"]`);
+    const inputs = contenedorPaso.querySelectorAll('input[required], select[required]');
+    let esValido = true;
+
+    inputs.forEach(input => {
+      if (!input.value.trim()) {
+        input.reportValidity();
+        esValido = false;
+      }
+    });
+
+    if (esValido) {
+      cambiarPaso(pasoActual, pasoActual + 1);
+    }
+  }
+
+  function volverPaso(pasoActual) {
     cambiarPaso(pasoActual, pasoActual - 1);
   }
 </script>
