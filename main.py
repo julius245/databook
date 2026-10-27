@@ -22,10 +22,9 @@ def create_app():
     # Verificamos e inicializamos la conexion a la base de datos al arrancar
     with app.app_context():
         try:
-            init_db() # Aqui se ejecutan las tablas e indices iniciales
-            print("Base de datos conectada correctamente.")
+            init_db() # Crea las tablas si no existen (sql/schema_postgres.sql)
         except Exception as e:
-            print(f"Error al conectar la base de datos: {e}")
+            print(f"No se pudo inicializar la base de datos: {e}")
 
     # Importamos los controladores que manejan cada seccion del sistema
     from controllers.auth_controller import auth_bp

@@ -17,9 +17,10 @@ def login():
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM usuarios WHERE email = %s", (email,))
         user = cursor.fetchone()
+        cursor.close()
         conn.close()
         
-        if user and check_password(password, user['password']):
+        if user and check_password(password, user['password_hash']):
             session['user_id'] = user['id']
             session['user_name'] = user['nombre']
             session['role'] = user.get('rol', 'usuario')
@@ -50,8 +51,8 @@ def register():
         cursor = conn.cursor()
         try:
             cursor.execute(
-                "INSERT INTO usuarios (nombre, email, password, rol) VALUES (%s, %s, %s, %s)",
-                (nombre_completo, email, hashed_pw, 'usuario')
+                "INSERT INTO usuarios (nombre, email, password_hash, rol, primer_nombre, primer_apellido) VALUES (%s, %s, %s, %s, %s, %s)",
+                (nombre_completo, email, hashed_pw, 'usuario', primer_nombre, primer_apellido)
             )
             conn.commit()
             flash("Registro exitoso. Ahora puedes iniciar sesión.", "success")
@@ -78,7 +79,7 @@ def change_password():
         flash("Funcionalidad de cambio de contraseña en desarrollo", "info")
         return redirect(url_for('auth.login'))
     
-    return render_template('web/change_password.html')
+    return render_template('web/cambiar_password.html')
 
 # Ruta para autenticación de Google (Soluciona el error actual)
 @auth_bp.route('/google-auth', methods=['POST'])
@@ -90,4 +91,4 @@ def google_auth():
 def logout():
     session.clear()
     flash("Has cerrado sesion", "info")
-    return redirect(url_for('web.index_web'))
+    return redirect(url_for('index'))

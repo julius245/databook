@@ -1,23 +1,19 @@
 -- =====================================================================
--- DataBook — Base MAESTRA `databook` (tabla `usuarios`) — versión corregida
--- Se puede ejecutar varias veces. Crea la base y la tabla si faltan y
--- agrega la columna `tema` solo si no existe.
+-- DataBook - Esquema PostgreSQL (idempotente: se puede ejecutar siempre)
+-- Lo ejecuta automaticamente models/database.py -> init_db() al arrancar.
 -- =====================================================================
-CREATE DATABASE IF NOT EXISTS `databook`
-  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE `databook`;
 
 CREATE TABLE IF NOT EXISTS usuarios (
-  id INT AUTO_INCREMENT PRIMARY KEY,
+  id SERIAL PRIMARY KEY,
   nombre VARCHAR(150) NOT NULL,
   email VARCHAR(150) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
-  fecha_registro VARCHAR(50) NOT NULL,
+  fecha_registro VARCHAR(50) NOT NULL DEFAULT to_char(now(), 'YYYY-MM-DD HH24:MI:SS'),
   rol VARCHAR(20) NOT NULL DEFAULT 'staff',
   creado_por INT DEFAULT NULL,
   estado VARCHAR(20) NOT NULL DEFAULT 'Activo',
   modulos_permitidos VARCHAR(255) NOT NULL DEFAULT 'catalogo,miembros,prestamos,multas',
-  password_temporal TINYINT(1) NOT NULL DEFAULT 0,
+  password_temporal SMALLINT NOT NULL DEFAULT 0,
   password_actualizada_en VARCHAR(50) DEFAULT NULL,
   primer_nombre VARCHAR(100) DEFAULT NULL,
   segundo_nombre VARCHAR(100) DEFAULT NULL,
@@ -44,28 +40,10 @@ CREATE TABLE IF NOT EXISTS usuarios (
   tutor_nombre VARCHAR(150) DEFAULT NULL,
   tutor_apellido VARCHAR(150) DEFAULT NULL,
   tutor_documento VARCHAR(50) DEFAULT NULL
-) ENGINE=InnoDB;
+);
 
-SET @existe := (SELECT COUNT(*) FROM information_schema.columns
-                WHERE table_schema = DATABASE()
-                  AND table_name = 'usuarios' AND column_name = 'tema');
-SET @sql := IF(@existe = 0,
-  "ALTER TABLE usuarios ADD COLUMN tema VARCHAR(20) NOT NULL DEFAULT 'sistema'",
-  "SELECT 'La columna tema ya existe' AS aviso");
-PREPARE paso FROM @sql;
-EXECUTE paso;
-DEALLOCATE PREPARE paso;
-
-UPDATE usuarios SET tema = 'sistema' WHERE tema NOT IN ('claro', 'oscuro', 'sistema');
-
-SELECT id, nombre, rol, tema FROM usuarios ORDER BY id;
-
--- =====================================================================
--- Tablas operativas de DataBook. Todas se crean en la única base `databook`.
--- CREATE TABLE IF NOT EXISTS conserva los datos que ya existan.
--- =====================================================================
 CREATE TABLE IF NOT EXISTS libros (
-  id INT AUTO_INCREMENT PRIMARY KEY,
+  id SERIAL PRIMARY KEY,
   titulo VARCHAR(255) NOT NULL,
   autor VARCHAR(255) NOT NULL,
   isbn VARCHAR(50),
@@ -86,10 +64,10 @@ CREATE TABLE IF NOT EXISTS libros (
   edicion VARCHAR(100),
   paginas VARCHAR(50),
   marc_json TEXT
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
 CREATE TABLE IF NOT EXISTS miembros (
-  id INT AUTO_INCREMENT PRIMARY KEY,
+  id SERIAL PRIMARY KEY,
   primer_nombre VARCHAR(100) NOT NULL DEFAULT '',
   segundo_nombre VARCHAR(100),
   primer_apellido VARCHAR(100) NOT NULL DEFAULT '',
@@ -105,33 +83,30 @@ CREATE TABLE IF NOT EXISTS miembros (
   tutor_apellido VARCHAR(150),
   tutor_documento VARCHAR(50),
   fecha_registro VARCHAR(50)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
 CREATE TABLE IF NOT EXISTS prestamos (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  libro_id INT NOT NULL,
-  miembro_id INT NOT NULL,
+  id SERIAL PRIMARY KEY,
+  libro_id INT NOT NULL REFERENCES libros(id) ON DELETE CASCADE,
+  miembro_id INT NOT NULL REFERENCES miembros(id) ON DELETE CASCADE,
   fecha_prestamo VARCHAR(50) NOT NULL,
   fecha_devolucion VARCHAR(50) NOT NULL,
   fecha_devuelto VARCHAR(50),
   observaciones TEXT,
-  estado VARCHAR(30) NOT NULL DEFAULT 'Activo',
-  CONSTRAINT fk_prestamos_libro FOREIGN KEY (libro_id) REFERENCES libros(id) ON DELETE CASCADE,
-  CONSTRAINT fk_prestamos_miembro FOREIGN KEY (miembro_id) REFERENCES miembros(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  estado VARCHAR(30) NOT NULL DEFAULT 'Activo'
+);
 
 CREATE TABLE IF NOT EXISTS multas (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  prestamo_id INT NOT NULL,
+  id SERIAL PRIMARY KEY,
+  prestamo_id INT NOT NULL REFERENCES prestamos(id) ON DELETE CASCADE,
   tipo_infraccion VARCHAR(100) NOT NULL,
   descripcion TEXT,
   fecha_inicio VARCHAR(50) NOT NULL,
   fecha_pago VARCHAR(50) DEFAULT NULL,
   monto INT NOT NULL DEFAULT 0,
   notas TEXT,
-  estado VARCHAR(30) NOT NULL DEFAULT 'Activa',
-  CONSTRAINT fk_multas_prestamo FOREIGN KEY (prestamo_id) REFERENCES prestamos(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  estado VARCHAR(30) NOT NULL DEFAULT 'Activa'
+);
 
 CREATE TABLE IF NOT EXISTS configuracion_biblioteca (
   id INT PRIMARY KEY,
@@ -143,12 +118,12 @@ CREATE TABLE IF NOT EXISTS configuracion_biblioteca (
   longitud VARCHAR(30) DEFAULT NULL,
   zona_horaria VARCHAR(80) DEFAULT NULL,
   actualizado_en VARCHAR(50)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
 CREATE TABLE IF NOT EXISTS sanciones_pedagogicas (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  prestamo_id INT DEFAULT NULL,
-  miembro_id INT NOT NULL,
+  id SERIAL PRIMARY KEY,
+  prestamo_id INT DEFAULT NULL REFERENCES prestamos(id) ON DELETE SET NULL,
+  miembro_id INT NOT NULL REFERENCES miembros(id) ON DELETE CASCADE,
   tipo VARCHAR(80) NOT NULL,
   descripcion TEXT,
   horas INT NOT NULL DEFAULT 0,
@@ -156,17 +131,51 @@ CREATE TABLE IF NOT EXISTS sanciones_pedagogicas (
   fecha_limite VARCHAR(50) DEFAULT NULL,
   fecha_cumplimiento VARCHAR(50) DEFAULT NULL,
   notas TEXT,
-  estado VARCHAR(30) NOT NULL DEFAULT 'Activa',
-  CONSTRAINT fk_sanciones_miembro FOREIGN KEY (miembro_id) REFERENCES miembros(id) ON DELETE CASCADE,
-  CONSTRAINT fk_sanciones_prestamo FOREIGN KEY (prestamo_id) REFERENCES prestamos(id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  estado VARCHAR(30) NOT NULL DEFAULT 'Activa'
+);
 
 CREATE TABLE IF NOT EXISTS notificaciones_prestamo (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  prestamo_id INT NOT NULL,
+  id SERIAL PRIMARY KEY,
+  prestamo_id INT NOT NULL REFERENCES prestamos(id) ON DELETE CASCADE,
   tipo VARCHAR(30) NOT NULL,
-  fecha_envio VARCHAR(50) NOT NULL,
-  CONSTRAINT fk_notificaciones_prestamo FOREIGN KEY (prestamo_id) REFERENCES prestamos(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  fecha_envio VARCHAR(50) NOT NULL
+);
 
-SELECT 'Estructura de DataBook creada en databook' AS resultado;
+-- =====================================================================
+-- Columnas de auditoria (usuario que creo/actualizo el registro).
+-- ADD COLUMN IF NOT EXISTS: tambien actualiza bases ya creadas antes.
+-- =====================================================================
+ALTER TABLE configuracion_biblioteca ADD COLUMN IF NOT EXISTS actualizado_por INT
+  REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE multas ADD COLUMN IF NOT EXISTS usuario_id INT
+  REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE notificaciones_prestamo ADD COLUMN IF NOT EXISTS usuario_id INT
+  REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE prestamos ADD COLUMN IF NOT EXISTS usuario_id INT
+  REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE sanciones_pedagogicas ADD COLUMN IF NOT EXISTS usuario_id INT
+  REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- =====================================================================
+-- Indices (los mismos de tu base MySQL)
+-- =====================================================================
+CREATE INDEX IF NOT EXISTS idx_configuracion_actualizado_por ON configuracion_biblioteca (actualizado_por);
+CREATE INDEX IF NOT EXISTS idx_libros_titulo ON libros (titulo);
+CREATE INDEX IF NOT EXISTS idx_libros_autor ON libros (autor);
+CREATE INDEX IF NOT EXISTS idx_libros_isbn ON libros (isbn);
+CREATE INDEX IF NOT EXISTS idx_libros_categoria ON libros (categoria);
+CREATE INDEX IF NOT EXISTS idx_libros_disp ON libros (disponibles);
+CREATE INDEX IF NOT EXISTS idx_miembros_nombre ON miembros (primer_apellido, primer_nombre);
+CREATE INDEX IF NOT EXISTS idx_miembros_estado ON miembros (estado);
+CREATE INDEX IF NOT EXISTS idx_multas_prestamo ON multas (prestamo_id);
+CREATE INDEX IF NOT EXISTS idx_multas_estado ON multas (estado);
+CREATE INDEX IF NOT EXISTS idx_multas_usuario ON multas (usuario_id);
+CREATE INDEX IF NOT EXISTS idx_notificaciones_prestamo ON notificaciones_prestamo (prestamo_id);
+CREATE INDEX IF NOT EXISTS idx_notificaciones_usuario ON notificaciones_prestamo (usuario_id);
+CREATE INDEX IF NOT EXISTS idx_prestamos_estado_dev ON prestamos (estado, fecha_devolucion);
+CREATE INDEX IF NOT EXISTS idx_prestamos_libro_est ON prestamos (libro_id, estado);
+CREATE INDEX IF NOT EXISTS idx_prestamos_miem_est ON prestamos (miembro_id, estado);
+CREATE INDEX IF NOT EXISTS idx_prestamos_usuario ON prestamos (usuario_id);
+CREATE INDEX IF NOT EXISTS idx_sanciones_miembro ON sanciones_pedagogicas (miembro_id);
+CREATE INDEX IF NOT EXISTS idx_sanciones_prestamo ON sanciones_pedagogicas (prestamo_id);
+CREATE INDEX IF NOT EXISTS idx_sanciones_usuario ON sanciones_pedagogicas (usuario_id);
