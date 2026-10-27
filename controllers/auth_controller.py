@@ -30,12 +30,18 @@ def login():
     return render_template('web/login.html')
 
 # Ruta para el registro de nuevos usuarios
+# Ruta para el registro de nuevos usuarios
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        nombre = request.form.get('nombre')
-        email = request.form.get('email')
-        password = request.form.get('password')
+        # Capturamos los campos enviados por el formulario wizard
+        primer_nombre = request.form.get('primer_nombre', '').strip()
+        primer_apellido = request.form.get('primer_apellido', '').strip()
+        email = request.form.get('email', '').strip()
+        password = request.form.get('password', '')
+        
+        # Unimos nombre y apellido si tu tabla de base de datos solo tiene la columna 'nombre'
+        nombre_completo = f"{primer_nombre} {primer_apellido}"
         
         hashed_pw = hash_password(password)
         
@@ -44,14 +50,17 @@ def register():
         try:
             cursor.execute(
                 "INSERT INTO usuarios (nombre, email, password, rol) VALUES (%s, %s, %s, %s)",
-                (nombre, email, hashed_pw, 'usuario')
+                (nombre_completo, email, hashed_pw, 'usuario')
             )
             conn.commit()
             flash("Registro exitoso. Ahora puedes iniciar sesión.", "success")
             return redirect(url_for('auth.login'))
         except Exception as e:
             conn.rollback()
-            flash("Error al registrar o el correo ya está registrado.", "danger")
+            print(f"Error en registro: {e}") # Para que lo veas en la terminal
+            flash("Error al registrar: el correo ya está registrado o faltan datos.", "danger")
+            # Devolvemos los datos al formulario para que el usuario no tenga que rescribir todo
+            return render_template('web/register.html', data=request.form)
         finally:
             conn.close()
             
