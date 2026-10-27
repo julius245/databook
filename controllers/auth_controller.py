@@ -29,6 +29,16 @@ def login():
             
     return render_template('web/login.html')
 
+# Ruta para recuperar/cambiar contraseña (Soluciona el error de url_for)
+@auth_bp.route('/change-password', methods=['GET', 'POST'])
+def change_password():
+    if request.method == 'POST':
+        # Aquí puedes implementar tu lógica de cambio de contraseña más adelante
+        flash("Funcionalidad de cambio de contraseña en desarrollo", "info")
+        return redirect(url_for('auth.login'))
+    
+    return render_template('web/change_password.html') # O puedes renderizar un template si lo tienes
+
 # Cierra la sesion del usuario
 @auth_bp.route('/logout')
 def logout():
