@@ -36,3 +36,20 @@ TIMEZONES = [
 ]
 
 TIMEZONE_VALUES = {value for value, _label in TIMEZONES}
+def get_countries():
+    """Retorna la lista de países."""
+    return COUNTRIES
+
+def get_timezones():
+    """Retorna la lista de zonas horarias."""
+    return TIMEZONES
+
+def get_document_types():
+    """Retorna los tipos de documento aceptados."""
+    return [
+        "Cédula de Ciudadanía",
+        "Cédula de Extranjería",
+        "Tarjeta de Identidad",
+        "Pasaporte",
+        "NIT"
+    ]
