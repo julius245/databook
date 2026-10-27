@@ -26,6 +26,13 @@ def create_app():
         except Exception as e:
             print(f"No se pudo inicializar la base de datos: {e}")
 
+    # Filtro personalizado para solucionar el error de 'format_date' en el dashboard
+    @app.template_filter('format_date')
+    def format_date(value):
+        if not value:
+            return ""
+        return str(value)
+
     # Importamos los controladores que manejan cada seccion del sistema
     from controllers.auth_controller import auth_bp
     from controllers.book_controller import book_bp

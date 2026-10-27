@@ -1,5 +1,6 @@
 # Controlador de autenticacion: inicio de sesion, registro y salir
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+import psycopg2.extras
 from models.database import _connect
 from security import hash_password, check_password
 from controllers.geo_data import get_countries, get_timezones, get_document_types
@@ -14,7 +15,8 @@ def login():
         password = request.form.get('password')
         
         conn = _connect()
-        cursor = conn.cursor()
+        # Usamos RealDictCursor para que los resultados sean diccionarios con nombres de columnas
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cursor.execute("SELECT * FROM usuarios WHERE email = %s", (email,))
         user = cursor.fetchone()
         cursor.close()
@@ -31,7 +33,6 @@ def login():
             
     return render_template('web/login.html')
 
-# Ruta para el registro de nuevos usuarios
 # Ruta para el registro de nuevos usuarios
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
@@ -72,6 +73,7 @@ def register():
         timezones=get_timezones(),
         document_types=get_document_types()
     )
+
 # Ruta para recuperar/cambiar contraseña
 @auth_bp.route('/change-password', methods=['GET', 'POST'])
 def change_password():
