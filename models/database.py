@@ -5,8 +5,13 @@
 
 import os
 import psycopg2
+import psycopg2.extras
 from urllib.parse import urlparse
 from config import Config
+
+# Ruta del esquema SQL (se ejecuta al arrancar; es idempotente)
+SCHEMA_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           'sql', 'schema_postgres.sql')
 
 def _connect():
     database_url = os.getenv('DATABASE_URL')
@@ -18,7 +23,11 @@ def _connect():
             user=url.username,
             password=url.password,
             host=url.hostname,
-            port=url.port
+            port=url.port,
+            # Render exige SSL en conexiones externas; si ya usas la URL interna, no estorba
+            sslmode=os.getenv('DB_SSLMODE', 'prefer'),
+            # Las filas se devuelven como diccionarios: user['email'], total['total'], etc.
+            cursor_factory=psycopg2.extras.RealDictCursor
         )
     else:
         return psycopg2.connect(
@@ -26,19 +35,28 @@ def _connect():
             database=Config.DB_NAME,
             user=Config.DB_USER,
             password=Config.DB_PASSWORD,
-            port=Config.DB_PORT
+            port=Config.DB_PORT,
+            cursor_factory=psycopg2.extras.RealDictCursor
         )
 
 def init_db():
+    """Verifica la conexion y crea todas las tablas que falten (CREATE TABLE IF NOT EXISTS)."""
+    conn = None
     try:
         conn = _connect()
-        cursor = conn.cursor()
-        cursor.execute("SELECT 1;")
-        cursor.close()
-        conn.close()
-        print("¡Base de datos PostgreSQL conectada exitosamente!")
+        with conn.cursor() as cursor:
+            with open(SCHEMA_PATH, encoding='utf-8') as f:
+                cursor.execute(f.read())
+        conn.commit()
+        print("¡Base de datos PostgreSQL conectada y tablas verificadas!")
     except Exception as e:
-        print(f"Error al conectar con la base de datos PostgreSQL: {e}")
+        if conn:
+            conn.rollback()
+        print(f"Error al inicializar la base de datos PostgreSQL: {e}")
+        raise
+    finally:
+        if conn:
+            conn.close()
 
 def ejecutar_query(sql, params=None, fetch=False, fetchone=False):
     conn = None
