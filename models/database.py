@@ -4,6 +4,7 @@
 # ==========================================
 
 import os
+import psycopg
 import psycopg2
 from urllib.parse import urlparse
 from config import Config
