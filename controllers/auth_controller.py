@@ -29,7 +29,7 @@ def login():
             
     return render_template('web/login.html')
 
-# Ruta para el registro de nuevos usuarios (Soluciona el error actual)
+# Ruta para el registro de nuevos usuarios
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -65,6 +65,11 @@ def change_password():
         return redirect(url_for('auth.login'))
     
     return render_template('web/change_password.html')
+
+# Ruta para autenticación de Google (Soluciona el error actual)
+@auth_bp.route('/google-auth', methods=['POST'])
+def google_auth():
+    return {"status": "success", "message": "Google auth en desarrollo"}, 200
 
 # Cierra la sesion del usuario
 @auth_bp.route('/logout')
