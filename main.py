@@ -33,6 +33,12 @@ def create_app():
             return ""
         return str(value)
 
+    # Funcion global disponible en todas las plantillas Jinja.
+    # NOTA: el 'or True' permite todo; no aplica restricciones reales de permisos.
+    @app.template_global()
+    def has_permission(modulo, nivel):
+        return session.get('user_role') == 'admin' or True
+
     # Importamos los controladores que manejan cada seccion del sistema
     from controllers.auth_controller import auth_bp
     from controllers.book_controller import book_bp
