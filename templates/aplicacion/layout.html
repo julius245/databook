@@ -50,12 +50,10 @@
                 {% if session.get('rol') != 'bibliotecario'
                       or 'catalogo' in session.get('modulos', []) %}
 
-                <a href="{{ url_for('books.list_books') }}"
-                   class="{{ 'activo' if request.endpoint and request.endpoint.startswith('books.') else '' }}"
-                   title="Catálogo">
-                    {{ icono('libro') }}
-                    <span class="texto-link">Catálogo</span>
-                </a>
+                <a href="{{ url_for('books.list_books') }}"<a href="{{ url_for('books.catalog') }}" class="{{ 'activo' if request.endpoint and request.endpoint.startswith('books.') }}" title="Catálogo">{{ icono('libro') }} 
+                  <span class="texto-link">Catálogo</span>
+                  </a>
+                  
 
                 {% endif %}
 
