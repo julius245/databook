@@ -175,16 +175,8 @@
     document.getElementById('form-registro-wizard').dataset.pasoActual = String(destino);
   }
 
-  function siguientePaso(pasoActual) {
-    const form = document.getElementById('form-registro-wizard');
-    const step = form.querySelector('.wizard-step[data-step="' + pasoActual + '"]');
-    if (!step) return;
-    const inputs = step.querySelectorAll('input, select');
-    for (const input of inputs) {   
-      if (!input.checkValidity()) {
-        input.reportValidity();
-        return;
-      }
-    }
-    cambiarPaso(pasoActual, pasoActual + 1);
+ function volverPaso(pasoActual) {
+    cambiarPaso(pasoActual, pasoActual - 1);
   }
+</script>
+{% endblock %}
