@@ -1,0 +1,216 @@
+{% extends "aplicacion/layout.html" %}
+{% from 'iconos.html' import icono %}
+{% block titulo %}Ajustes — DataBook{% endblock %}
+
+{% block contenido %}
+<div class="app-header">
+  <h1>Ajustes</h1>
+  <p>Personaliza la apariencia y administra tu cuenta</p>
+</div>
+
+<div class="ajustes-grid">
+
+  <!-- Apariencia -->
+  <section class="tarjeta-perfil">
+    <h3 class="subtitulo-form" style="margin-top:0;">Apariencia</h3>
+    <p class="ayuda-campo">Elige cómo se ve DataBook. El cambio se aplica al instante y se guarda en tu cuenta.</p>
+
+    <form method="POST" action="{{ url_for('auth.save_theme') }}" id="form-tema">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="theme-options" role="radiogroup" aria-label="Tema de la aplicación">
+        <label class="theme-option">
+          <input type="radio" name="tema" value="claro" {{ 'checked' if current_theme == 'claro' }}> Claro
+        </label>
+        <label class="theme-option">
+          <input type="radio" name="tema" value="oscuro" {{ 'checked' if current_theme == 'oscuro' }}> Oscuro
+        </label>
+        <label class="theme-option">
+          <input type="radio" name="tema" value="sistema" {{ 'checked' if current_theme not in ('claro', 'oscuro') }}> Predeterminado por el sistema
+        </label>
+      </div>
+      <noscript><button type="submit" class="btn btn-azul" style="margin-top:12px;">Guardar apariencia</button></noscript>
+    </form>
+  </section>
+
+  <!-- Cuenta -->
+  <section class="tarjeta-perfil">
+    <h3 class="subtitulo-form" style="margin-top:0;">Mi cuenta</h3>
+    <div class="acciones-ajustes">
+      {% if user.rol in ('staff', 'bibliotecario') %}
+      <button type="button" class="btn btn-outline" onclick="abrirModal('modal-editar-perfil')">{{ icono('lapiz') }} Editar mi perfil</button>
+      {% endif %}
+
+      {% if user.rol == 'staff' %}
+      <button type="button" class="btn btn-outline" onclick="abrirModal('modal-editar-biblioteca')">{{ icono('libro') }} Editar mi biblioteca</button>
+      {% elif user.rol == 'bibliotecario' %}
+      <button type="button" class="btn btn-outline" disabled
+              title="Solo el staff (encargado) puede editar los datos de la biblioteca.">{{ icono('libro') }} Editar mi biblioteca</button>
+      {% endif %}
+
+      <button type="button" class="btn btn-outline" onclick="abrirModal('modal-cambiar-password')">{{ icono('llave') }} Cambiar mi contraseña</button>
+    </div>
+    {% if library_config %}
+    <div class="reglas-multas" style="margin-top:16px;">
+      <h4>{{ icono('ubicacion') }} Ubicación de la biblioteca</h4>
+      <ul>
+        <li><b>{{ library_config.nombre }}</b></li>
+        {% if library_config.direccion %}<li>Dirección: {{ library_config.direccion }}</li>{% endif %}
+        {% if library_config.ciudad or library_config.pais %}<li>{{ library_config.ciudad }}{{ ', ' if library_config.ciudad and library_config.pais }}{{ library_config.pais }}</li>{% endif %}
+        {% if library_config.zona_horaria %}<li>Zona horaria: {{ library_config.zona_horaria }}</li>{% endif %}
+        {% if library_config.latitud and library_config.longitud %}<li>Coordenadas: {{ library_config.latitud }}, {{ library_config.longitud }}</li>{% endif %}
+        {% if library_config.actualizado_en %}<li class="subtexto">Actualizado: {{ library_config.actualizado_en|format_date }}</li>{% endif %}
+      </ul>
+    </div>
+    {% endif %}
+    {% if user.rol == 'bibliotecario' %}
+    <p class="ayuda-campo" style="margin-top:12px;">
+      La biblioteca <strong>{{ library }}</strong> la administra su staff; por eso no puedes editarla.
+    </p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
+
+{% block modales %}
+{% if user.rol in ('staff', 'bibliotecario') %}
+<!-- Editar mi perfil -->
+<div class="overlay-modal" id="modal-editar-perfil">
+  <div class="modal-contenido">
+    <div class="cabecera-modal">
+      <h2>Editar mi perfil</h2>
+      <button class="cerrar" onclick="cerrarModal('modal-editar-perfil')">{{ icono('cerrar') }}</button>
+    </div>
+    <form method="POST" action="{{ url_for('auth.edit_my_profile') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="fila-2">
+        <div class="campo"><label>Primer Nombre *</label><input type="text" name="primer_nombre" value="{{ user.primer_nombre or '' }}" maxlength="100" required></div>
+        <div class="campo"><label>Segundo Nombre</label><input type="text" name="segundo_nombre" value="{{ user.segundo_nombre or '' }}" maxlength="100"></div>
+      </div>
+      <div class="fila-2">
+        <div class="campo"><label>Primer Apellido *</label><input type="text" name="primer_apellido" value="{{ user.primer_apellido or '' }}" maxlength="100" required></div>
+        <div class="campo"><label>Segundo Apellido</label><input type="text" name="segundo_apellido" value="{{ user.segundo_apellido or '' }}" maxlength="100"></div>
+      </div>
+      <div class="fila-2">
+        <div class="campo">
+          <label>Tipo de Documento *</label>
+          <select name="tipo_documento" required>
+            <option value="" disabled {{ 'selected' if not user.tipo_documento }}>Selecciona una opción</option>
+            {% for t in document_types %}
+            <option value="{{ t }}" {{ 'selected' if user.tipo_documento == t }}>{{ t }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="campo">
+          <label>Número de Documento *</label>
+          <input type="text" name="numero_documento" value="{{ user.numero_documento or '' }}"
+                 inputmode="numeric" autocomplete="off"
+                 minlength="8" maxlength="10" pattern="[0-9]{8,10}"
+                 title="Debe tener entre 8 y 10 dígitos numéricos."
+                 oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)"
+                 required>
+        </div>
+      </div>
+      <div class="fila-2">
+        <div class="campo"><label>Correo Electrónico *</label><input type="email" name="email" value="{{ user.email }}" required></div>
+        <div class="campo"><label>Teléfono</label>
+          <input type="text" name="telefono" value="{{ user.telefono or '' }}" inputmode="numeric"
+                 pattern="[0-9]{7,10}" maxlength="10" title="Entre 7 y 10 dígitos."
+                 oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)"></div>
+      </div>
+      <div class="acciones-modal">
+        <button type="button" class="btn btn-outline" onclick="cerrarModal('modal-editar-perfil')">Cancelar</button>
+        <button type="submit" class="btn btn-azul">Guardar Cambios</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% if user.rol == 'staff' %}
+<!-- Editar mi biblioteca -->
+<div class="overlay-modal" id="modal-editar-biblioteca">
+  <div class="modal-contenido">
+    <div class="cabecera-modal">
+      <h2>Editar mi biblioteca</h2>
+      <button class="cerrar" onclick="cerrarModal('modal-editar-biblioteca')">{{ icono('cerrar') }}</button>
+    </div>
+    <form method="POST" action="{{ url_for('auth.edit_my_library') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="campo">
+        <label>Nombre de la biblioteca *</label>
+        <input type="text" name="biblioteca_nombre" value="{{ user.nombre }}" maxlength="150" required>
+      </div>
+      <div class="campo">
+        <label>Dirección de la biblioteca *</label>
+        <input type="text" name="biblioteca_direccion" value="{{ user.direccion or '' }}" maxlength="255"
+               placeholder="Ej: Calle 10 # 5-20, Bogotá" required>
+      </div>
+      <div class="acciones-modal">
+        <button type="button" class="btn btn-outline" onclick="cerrarModal('modal-editar-biblioteca')">Cancelar</button>
+        <button type="submit" class="btn btn-azul">Guardar Cambios</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<!-- Cambiar mi contraseña -->
+<div class="overlay-modal" id="modal-cambiar-password">
+  <div class="modal-contenido">
+    <div class="cabecera-modal">
+      <h2>Cambiar mi contraseña</h2>
+      <button class="cerrar" onclick="cerrarModal('modal-cambiar-password')">{{ icono('cerrar') }}</button>
+    </div>
+    <form method="POST" action="{{ url_for('auth.change_my_password') }}" onsubmit="return validarCambioPassword(this)">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="campo"><label>Contraseña actual *</label><input type="password" name="actual" autocomplete="current-password" required></div>
+      <div class="campo"><label>Nueva contraseña *</label><input type="password" name="nueva" autocomplete="new-password" minlength="6" required></div>
+      <div class="campo"><label>Confirmar nueva contraseña *</label><input type="password" name="confirmar" autocomplete="new-password" minlength="6" required></div>
+      <p class="ayuda-campo" id="error-password" style="color:var(--rojo-txt);display:none;"></p>
+      <div class="acciones-modal">
+        <button type="button" class="btn btn-outline" onclick="cerrarModal('modal-cambiar-password')">Cancelar</button>
+        <button type="submit" class="btn btn-azul">Cambiar contraseña</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Apariencia: se aplica al momento y se guarda en la cuenta en segundo plano.
+  (function () {
+    const form = document.getElementById('form-tema');
+    if (!form) return;
+    form.addEventListener('change', function (e) {
+      if (e.target.name !== 'tema') return;
+      const tema = e.target.value;
+      document.documentElement.dataset.tema = tema;
+      fetch(form.action, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'fetch', 'X-CSRFToken': '{{ csrf_token() }}' },
+        body: JSON.stringify({ tema: tema })
+      }).then(r => r.json()).then(d => {
+        if (!d.success) console.warn('No se pudo guardar el tema:', d.message);
+      }).catch(() => console.warn('No se pudo guardar el tema (sin conexión).'));
+    });
+  })();
+
+  // Cambio de contraseña: revisiones básicas antes de enviar.
+  function validarCambioPassword(form) {
+    const aviso = document.getElementById('error-password');
+    aviso.style.display = 'none';
+    if (form.nueva.value !== form.confirmar.value) {
+      aviso.textContent = 'Las contraseñas nuevas no coinciden.';
+      aviso.style.display = 'block';
+      return false;
+    }
+    if (form.nueva.value === form.actual.value) {
+      aviso.textContent = 'La nueva contraseña debe ser distinta de la actual.';
+      aviso.style.display = 'block';
+      return false;
+    }
+    return true;
+  }
+</script>
+{% endblock %}

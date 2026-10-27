@@ -1,0 +1,334 @@
+{% extends "aplicacion/layout.html" %}
+{% from 'iconos.html' import icono %}
+{% block titulo %}Mi Equipo — DataBook{% endblock %}
+
+{# Etiqueta visible del rol de un miembro: la del preset, o el texto libre que
+   escribió el staff cuando eligió "Otro". #}
+{% macro etiqueta_rol(b) -%}
+  {%- if b.rol_equipo in roles and b.rol_equipo != 'otro' -%}
+    {{ roles[b.rol_equipo].etiqueta }}
+  {%- elif b.rol_equipo and b.rol_equipo != 'otro' -%}
+    {{ b.rol_equipo }}
+  {%- else -%}
+    Otro
+  {%- endif -%}
+{%- endmacro %}
+
+{% block contenido %}
+<div class="app-header-row">
+  <div>
+    <h1>Mi Equipo</h1>
+    <p>{{ librarians|length }} miembro(s) registrado(s)</p>
+  </div>
+  <button class="btn btn-azul" onclick="abrirModal('modal-nuevo-bibliotecario')">+ Nuevo miembro</button>
+</div>
+
+<form method="GET" class="barra-filtros">
+  <select name="rol" onchange="this.form.submit()">
+    <option value="">Todos los roles</option>
+    {% for clave, rol in roles.items() %}
+      <option value="{{ clave }}" {{ 'selected' if role_filter == clave }}>{{ rol.etiqueta }}</option>
+    {% endfor %}
+  </select>
+</form>
+
+<div class="tabla-wrap">
+  <table class="tabla-datos">
+    <thead>
+      <tr>
+        <th>Miembro</th><th>Documento</th><th>Contacto</th><th>Rol</th><th>Permisos por módulo</th>
+        <th>Contraseña</th><th>Estado</th><th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for b in librarians %}
+      <tr>
+        <td>{{ b.nombre }}</td>
+        <td>
+          {% if b.tipo_documento or b.numero_documento %}
+            <div>{{ b.tipo_documento or '—' }}</div>
+            <div class="subtexto">{{ b.numero_documento or '—' }}</div>
+          {% else %}—{% endif %}
+        </td>
+        <td>
+          <div>{{ icono('correo') }} {{ b.email }}</div>
+          <div class="subtexto">{{ icono('telefono') }} {{ b.telefono or '—' }}</div>
+        </td>
+        <td><span class="badge badge-azul">{{ etiqueta_rol(b) }}</span></td>
+        <td>
+          {% set ns = namespace(con_acceso=false) %}
+          {% for clave, etiqueta in modules.items() %}
+          {% set nivel_actual = b['permiso_' + clave] or 'sin_acceso' %}
+          {% if nivel_actual != 'sin_acceso' %}
+          {% set ns.con_acceso = true %}
+          <span class="badge badge-verde" style="margin:1px;" title="{{ etiqueta }}">{{ etiqueta }}: {{ levels.get(nivel_actual, nivel_actual) }}</span>
+          {% endif %}
+          {% endfor %}
+          {% if not ns.con_acceso %}<span class="badge badge-rojo">Sin Acceso</span>{% endif %}
+        </td>
+        <td>
+          {% if b.password_temporal %}
+            <span class="badge badge-rojo">Temporal</span>
+          {% else %}
+            <span class="badge badge-verde">Actualizada</span>
+          {% endif %}
+        </td>
+        <td><span class="badge {{ 'badge-verde' if b.estado == 'Activo' else 'badge-rojo' }}">{{ b.estado }}</span></td>
+        <td>
+          <button type="button" title="Editar datos" onclick="abrirModal('modal-editar-{{ b.id }}')">{{ icono('lapiz') }}</button>
+          <button type="button" title="Rol y permisos" onclick="abrirModal('modal-permisos-{{ b.id }}')">{{ icono('engranaje') }}</button>
+          <form method="POST" action="{{ url_for('team.reset_librarian_password', librarian_id=b.id) }}" onsubmit="return confirm('¿Generar una nueva contraseña temporal para este miembro?');" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" title="Restablecer contraseña">{{ icono('llave') }}</button>
+          </form>
+          {% if not b.password_temporal %}
+          <form method="POST" action="{{ url_for('team.require_password_change', librarian_id=b.id) }}" onsubmit="return confirm('¿Pedir a este miembro que cambie su contraseña en su próximo inicio de sesión? Su contraseña actual seguirá funcionando para entrar, pero al hacerlo se le enviará directo a elegir una nueva.');" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" title="Cambiar contraseña en la próxima sesión">{{ icono('alarma') }}</button>
+          </form>
+          {% endif %}
+          <form method="POST" action="{{ url_for('team.restrict_librarian', librarian_id=b.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" title="{{ 'Restringir' if b.estado == 'Activo' else 'Reactivar' }}">
+              {{ icono('bloqueado') if b.estado == 'Activo' else icono('verificado') }}
+            </button>
+          </form>
+          <form method="POST" action="{{ url_for('team.delete_librarian', librarian_id=b.id) }}" onsubmit="return confirm('¿Eliminar a este miembro? Esta acción no se puede deshacer.');" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" title="Eliminar">{{ icono('papelera') }}</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" class="vacio">{{ 'Ningún miembro tiene ese rol.' if role_filter else 'Todavía no has agregado ningún miembro a tu equipo.' }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Modales por miembro: editar datos + rol y permisos -->
+{% for b in librarians %}
+{% set es_otro = (b.rol_equipo not in roles) or b.rol_equipo == 'otro' %}
+
+<div class="overlay-modal" id="modal-editar-{{ b.id }}">
+  <div class="modal-contenido">
+    <div class="cabecera-modal">
+      <h2>Editar datos de {{ b.nombre }}</h2>
+      <button class="cerrar" onclick="cerrarModal('modal-editar-{{ b.id }}')">{{ icono('cerrar') }}</button>
+    </div>
+    <form method="POST" action="{{ url_for('team.edit_librarian', librarian_id=b.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="fila-2">
+        <div class="campo"><label>Primer Nombre *</label><input type="text" name="primer_nombre" value="{{ b.primer_nombre or '' }}" maxlength="100" required></div>
+        <div class="campo"><label>Segundo Nombre</label><input type="text" name="segundo_nombre" value="{{ b.segundo_nombre or '' }}" maxlength="100"></div>
+      </div>
+      <div class="fila-2">
+        <div class="campo"><label>Primer Apellido *</label><input type="text" name="primer_apellido" value="{{ b.primer_apellido or '' }}" maxlength="100" required></div>
+        <div class="campo"><label>Segundo Apellido</label><input type="text" name="segundo_apellido" value="{{ b.segundo_apellido or '' }}" maxlength="100"></div>
+      </div>
+      <div class="fila-2">
+        <div class="campo">
+          <label>Tipo de Documento *</label>
+          <select name="tipo_documento" required>
+            <option value="" disabled {{ 'selected' if not b.tipo_documento }}>Selecciona una opción</option>
+            {% for t in document_types %}
+            <option value="{{ t }}" {{ 'selected' if b.tipo_documento == t }}>{{ t }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="campo">
+          <label>Número de Identificación *</label>
+          <input type="text" name="numero_documento" value="{{ b.numero_documento or '' }}"
+                 inputmode="numeric" autocomplete="off" minlength="8" maxlength="10" pattern="[0-9]{8,10}"
+                 title="Debe tener entre 8 y 10 dígitos numéricos."
+                 oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)" required>
+        </div>
+      </div>
+      <div class="fila-2">
+        <div class="campo"><label>Correo Electrónico *</label><input type="email" name="email" value="{{ b.email }}" required></div>
+        <div class="campo"><label>Teléfono</label>
+          <input type="text" name="telefono" value="{{ b.telefono or '' }}" inputmode="numeric"
+                 pattern="[0-9]{7,10}" maxlength="10" title="Entre 7 y 10 dígitos."
+                 oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)"></div>
+      </div>
+      <div class="acciones-modal">
+        <button type="button" class="btn btn-outline" onclick="cerrarModal('modal-editar-{{ b.id }}')">Cancelar</button>
+        <button type="submit" class="btn btn-azul">Guardar Cambios</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="overlay-modal" id="modal-permisos-{{ b.id }}">
+  <div class="modal-contenido">
+    <div class="cabecera-modal">
+      <h2>Rol y permisos de {{ b.nombre }}</h2>
+      <button class="cerrar" onclick="cerrarModal('modal-permisos-{{ b.id }}')">{{ icono('cerrar') }}</button>
+    </div>
+    <form method="POST" action="{{ url_for('team.librarian_permissions', librarian_id=b.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="campo">
+        <label>Rol</label>
+        <select name="rol_equipo" id="rol-equipo-{{ b.id }}" onchange="aplicarPresetRol('{{ b.id }}', this.value)">
+          {% for clave, rol in roles.items() %}
+          <option value="{{ clave }}" {{ 'selected' if (clave == 'otro' and es_otro) or b.rol_equipo == clave }}>{{ rol.etiqueta }}</option>
+          {% endfor %}
+        </select>
+        <div class="campo-rol-otro" id="rol-otro-{{ b.id }}">
+          <label>Especifica el rol *</label>
+          <input type="text" name="rol_equipo_otro" maxlength="50"
+                 value="{{ b.rol_equipo if (es_otro and b.rol_equipo and b.rol_equipo != 'otro') else '' }}"
+                 placeholder="Ej: Coordinador de préstamo">
+        </div>
+        <div class="ayuda-campo">Elegir un rol autocompleta los permisos por módulo; igual puedes ajustar cualquiera manualmente después.</div>
+      </div>
+      <div class="campo campo-permisos-modulo" id="grupo-permisos-{{ b.id }}">
+        <label>Niveles de permiso por módulo</label>
+        {% for clave, etiqueta in modules.items() %}
+        <div class="fila-permiso-modulo">
+          <span>{{ etiqueta }}</span>
+          <select name="permiso_{{ clave }}" class="select-permiso-{{ b.id }}" data-modulo="{{ clave }}">
+            {% for nivel_clave, nivel_etiqueta in levels.items() %}
+            <option value="{{ nivel_clave }}" {{ 'selected' if (b['permiso_' + clave] or 'sin_acceso') == nivel_clave }}>{{ nivel_etiqueta }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="acciones-modal">
+        <button type="button" class="btn btn-outline" onclick="cerrarModal('modal-permisos-{{ b.id }}')">Cancelar</button>
+        <button type="submit" class="btn btn-azul">Guardar Rol y Permisos</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endfor %}
+
+<!-- Modal: Nuevo miembro -->
+<div class="overlay-modal" id="modal-nuevo-bibliotecario">
+  <div class="modal-contenido">
+    <div class="cabecera-modal">
+      <h2>Nuevo miembro</h2>
+      <button class="cerrar" onclick="cerrarModal('modal-nuevo-bibliotecario')">{{ icono('cerrar') }}</button>
+    </div>
+    <form method="POST" action="{{ url_for('team.new_librarian') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <h4 class="subtitulo-form">Datos personales</h4>
+      <div class="fila-2">
+        <div class="campo"><label>Primer Nombre *</label><input type="text" name="primer_nombre" maxlength="100" required></div>
+        <div class="campo"><label>Segundo Nombre</label><input type="text" name="segundo_nombre" maxlength="100"></div>
+      </div>
+      <div class="fila-2">
+        <div class="campo"><label>Primer Apellido *</label><input type="text" name="primer_apellido" maxlength="100" required></div>
+        <div class="campo"><label>Segundo Apellido</label><input type="text" name="segundo_apellido" maxlength="100"></div>
+      </div>
+      <div class="fila-2">
+        <div class="campo">
+          <label>Tipo de Documento *</label>
+          <select name="tipo_documento" required>
+            <option value="" disabled selected>Selecciona una opción</option>
+            {% for t in document_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="campo">
+          <label>Número de Identificación *</label>
+          <input type="text" name="numero_documento" id="numero-documento-nuevo"
+                 inputmode="numeric" autocomplete="off"
+                 minlength="8" maxlength="10" pattern="[0-9]{8,10}"
+                 title="Debe tener entre 8 y 10 dígitos numéricos."
+                 oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)"
+                 required>
+        </div>
+      </div>
+      <div class="fila-2">
+        <div class="campo"><label>Correo Electrónico *</label><input type="email" name="email" required></div>
+        <div class="campo"><label>Teléfono</label>
+          <input type="text" name="telefono" inputmode="numeric" pattern="[0-9]{7,10}" maxlength="10" title="Entre 7 y 10 dígitos."
+                 oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)"></div>
+      </div>
+
+      <h4 class="subtitulo-form">Rol y permisos por módulo</h4>
+      <div class="campo">
+        <label>Rol</label>
+        <select name="rol_equipo" id="rol-equipo-nuevo" onchange="aplicarPresetRol('nuevo', this.value)">
+          {% for clave, rol in roles.items() %}
+          <option value="{{ clave }}" {{ 'selected' if clave == 'bibliotecario_completo' }}>{{ rol.etiqueta }}</option>
+          {% endfor %}
+        </select>
+        <div class="campo-rol-otro" id="rol-otro-nuevo">
+          <label>Especifica el rol *</label>
+          <input type="text" name="rol_equipo_otro" maxlength="50" placeholder="Ej: Coordinador de préstamo">
+        </div>
+        <div class="ayuda-campo">Elegir un rol autocompleta los permisos por módulo (estilo Google Drive); igual puedes ajustar cualquiera manualmente después.</div>
+      </div>
+      <div class="campo campo-permisos-modulo" id="grupo-permisos-nuevo">
+        <label>Niveles de permiso por módulo</label>
+        {% for clave, etiqueta in modules.items() %}
+        <div class="fila-permiso-modulo">
+          <span>{{ etiqueta }}</span>
+          <select name="permiso_{{ clave }}" class="select-permiso-nuevo" data-modulo="{{ clave }}">
+            {% for nivel_clave, nivel_etiqueta in levels.items() %}
+            <option value="{{ nivel_clave }}" {{ 'selected' if nivel_clave == 'control_total' }}>{{ nivel_etiqueta }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endfor %}
+      </div>
+
+      <p style="font-size:0.85rem;color:var(--texto-muted);">
+        Se generará una contraseña temporal que verás una sola vez al crear la cuenta.
+        Compártela con el nuevo miembro; podrá cambiarla luego desde "¿Olvidaste tu contraseña?" en el login.
+      </p>
+      <div class="acciones-modal">
+        <button type="button" class="btn btn-outline" onclick="cerrarModal('modal-nuevo-bibliotecario')">Cancelar</button>
+        <button type="submit" class="btn btn-azul">Crear miembro</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<div id="roles-config" hidden data-presets='{{ roles|tojson }}'></div>
+<script>
+  // Presets dinámicos de permisos por rol (estilo Google Drive). Se
+  // renderizan desde el backend para no duplicar la regla de negocio.
+  const PRESETS_ROL = JSON.parse(document.getElementById('roles-config').dataset.presets);
+
+  // Muestra/oculta el campo de texto del rol personalizado ("Otro") y, si
+  // `aplicarPermisos` es true, autocompleta los permisos con el preset del rol.
+  function aplicarPresetRol(sufijoGrupo, rolSeleccionado, aplicarPermisos) {
+    if (aplicarPermisos === undefined) aplicarPermisos = true;
+
+    const bloqueOtro = document.getElementById('rol-otro-' + sufijoGrupo);
+    const inputOtro = bloqueOtro ? bloqueOtro.querySelector('input') : null;
+    if (bloqueOtro) {
+      const mostrar = rolSeleccionado === 'otro';
+      bloqueOtro.style.display = mostrar ? 'block' : 'none';
+      if (inputOtro) {
+        inputOtro.required = mostrar;          // obligatorio solo si está visible
+        if (mostrar && aplicarPermisos) inputOtro.focus();
+      }
+    }
+
+    const preset = PRESETS_ROL[rolSeleccionado];
+    if (!aplicarPermisos || !preset) return;
+    document.querySelectorAll('.select-permiso-' + sufijoGrupo).forEach(function (select) {
+      const modulo = select.dataset.modulo;
+      if (preset.permisos && preset.permisos[modulo]) {
+        select.value = preset.permisos[modulo];
+      }
+    });
+    // El usuario puede seguir ajustando cada módulo manualmente después.
+  }
+
+  // Al cargar la página SOLO se ajusta la visibilidad del campo "Otro":
+  // no se re-aplican los presets, para no pisar los permisos ya guardados
+  // de cada miembro (cuando abres su modal ves lo que tiene de verdad).
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[id^="rol-equipo-"]').forEach(function (select) {
+      aplicarPresetRol(select.id.replace('rol-equipo-', ''), select.value, false);
+    });
+  });
+</script>
+{% endblock %}

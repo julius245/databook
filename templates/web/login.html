@@ -1,0 +1,102 @@
+{% extends "web/layout.html" %}
+{% from 'iconos.html' import icono, logo %}
+
+{% block titulo %}Iniciar sesión — DataBook{% endblock %}
+{% block navbar_clase %}claro{% endblock %}
+{% block footer %}{% endblock %}
+
+{% block contenido %}
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<div class="auth-wrap">
+  <div class="auth-panel">
+    <div class="logo-auth">{{ logo(26) }} DataBook</div>
+    <h2>Gestiona tu biblioteca sin complicaciones</h2>
+    <p class="pitch">Catálogo, miembros, préstamos y multas en un solo lugar, con roles y permisos para todo tu equipo.</p>
+    <div class="beneficios">
+      <div><span class="punto">{{ icono('check') }}</span> Cada biblioteca con sus propios datos, separados y seguros</div>
+      <div><span class="punto">{{ icono('check') }}</span> Crea cuentas para tus bibliotecarios con permisos a la medida</div>
+      <div><span class="punto">{{ icono('check') }}</span> Control de préstamos, devoluciones y multas al día</div>
+    </div>
+  </div>
+
+  <div class="auth-form-side">
+    <div class="auth-box">
+      <a href="{{ url_for('index') }}" class="volver">{{ icono('flecha-izq') }} Volver al inicio</a>
+      <div class="icono-auth">{{ icono('flecha-der', clase='icono icono-lg') }}</div>
+      <h1>Bienvenido de nuevo</h1>
+      <p class="subt">Inicia sesión en tu cuenta</p>
+
+      <div class="auth-card">
+        <div id="g_id_onload"
+             data-client_id="{{ config['GOOGLE_CLIENT_ID'] }}"
+             data-callback="handleCredentialResponse"
+             data-auto_prompt="false">
+        </div>
+        <div class="g_id_signin" 
+             data-type="standard" 
+             data-size="large" 
+             data-theme="outline" 
+             data-text="sign_in_with" 
+             data-shape="rectangular" 
+             data-logo_alignment="left">
+        </div>
+
+        <div class="separador">o</div>
+
+        <form method="POST" action="{{ url_for('auth.login') }}" autocomplete="off">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="campo">
+            <label for="email">Correo electrónico</label>
+            <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="off" required>
+          </div>
+          <div class="campo">
+            <label for="password">Contraseña <a href="{{ url_for('auth.change_password') }}">¿Olvidaste tu contraseña?</a></label>
+            <div style="position:relative;">
+              <input type="password" id="password" name="password" placeholder="••••••••" autocomplete="new-password" required style="width:100%;">
+              <span id="icono-password" onclick="togglePassword('password','icono-password')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;">{{ icono('ojo') }}</span>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-block">Iniciar sesión</button>
+        </form>
+      </div>
+
+      <p class="auth-pie">¿No tienes cuenta? <a href="{{ url_for('auth.register') }}">Crear una</a></p> 
+    </div>
+  </div>
+</div>
+
+<script>
+  function handleCredentialResponse(response) {
+    fetch("{{ url_for('auth.google_auth') }}", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": "{{ csrf_token() }}"
+      },
+      body: JSON.stringify({ credential: response.credential })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        window.location.href = "{{ url_for('dashboard.index') }}";
+      } else {
+        alert("Error al autenticar con Google: " + (data.message || "Inténtalo de nuevo."));
+      }
+    })
+    .catch(err => {
+      console.error("Error en la petición:", err);
+      alert("Ocurrió un problema de conexión al validar con Google.");
+    });
+  }
+
+  function togglePassword(inputId, iconId) {
+    const input = document.getElementById(inputId);
+    if (input.type === "password") {
+      input.type = "text";
+    } else {
+      input.type = "password";
+    }
+  }
+</script>
+{% endblock %}

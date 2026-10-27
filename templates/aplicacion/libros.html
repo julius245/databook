@@ -1,0 +1,368 @@
+{% extends "aplicacion/layout.html" %}
+{% from 'iconos.html' import icono %}
+{% block titulo %}Catálogo — DataBook{% endblock %}
+
+{% block contenido %}
+<div class="app-header-row">
+  <div>
+    <h1>Catálogo</h1>
+    <p>{{ books|length }} libro(s) registrado(s)</p>
+  </div>
+  {% if has_permission('catalogo', 'editor') %}
+  <div style="display:flex; gap:10px;">
+    <button class="btn btn-outline" onclick="abrirModal('modal-importar-libros')">Importar Excel</button>
+    <button class="btn btn-azul" onclick="abrirModal('modal-nuevo-libro')">+ Nuevo Libro</button>
+  </div>
+  {% endif %}
+</div>
+
+<form method="GET" class="barra-filtros">
+  <div class="buscar">
+    <span class="icono-buscar">{{ icono('buscar') }}</span>
+    <input type="text" name="q" value="{{ search_term }}" placeholder="Buscar por título, autor o ISBN...">
+  </div>
+  <select name="categoria" onchange="this.form.submit()">
+    <option {{ 'selected' if current_category == 'Todas las categorías' }}>Todas las categorías</option>
+    {% for c in categories %}
+      <option {{ 'selected' if current_category == c }}>{{ c }}</option>
+    {% endfor %}
+  </select>
+</form>
+
+{% if books %}
+<div class="grid-libros">
+  {% for libro in books %}
+  <div class="tarjeta-libro {{ 'con-portada' if libro.portada }}">
+    {% if libro.portada %}
+    <div class="portada-libro"
+         data-url-portada="{{ url_for('static', filename=libro.portada) }}"
+         data-titulo="{{ libro.titulo|e }}"
+         onclick="abrirLightbox(this.dataset.urlPortada, this.dataset.titulo)"
+         title="Ver portada en grande">
+      <img src="{{ url_for('static', filename=libro.portada) }}" alt="Portada de {{ libro.titulo }}">
+    </div>
+    {% endif %}
+    <div class="cuerpo-tarjeta-libro">
+    <div class="cabecera">
+      <div>
+        <h4>{{ libro.titulo }}</h4>
+        <div class="autor">{{ libro.autor }}</div>
+      </div>
+      {% if has_permission('catalogo', 'editor') %}
+      <div class="acciones-icono">
+        <button type="button" title="Editar" class="btn-editar-libro"
+                data-id="{{ libro.id }}"
+                data-titulo="{{ libro.titulo }}"
+                data-autor="{{ libro.autor }}"
+                data-isbn="{{ libro.isbn or '' }}"
+                data-categoria="{{ libro.categoria }}"
+                data-editorial="{{ libro.editorial or '' }}"
+                data-anio="{{ libro.anio or '' }}"
+                data-total="{{ libro.total_ejemplares }}"
+                data-disp="{{ libro.disponibles }}"
+                data-ubicacion="{{ libro.ubicacion or '' }}"
+                data-descripcion="{{ libro.descripcion or '' }}"
+                data-idioma="{{ libro.idioma or '' }}"
+                data-lugar="{{ libro.lugar_publicacion or '' }}"
+                data-tipo-material="{{ libro.tipo_material or '' }}"
+                data-edicion="{{ libro.edicion or '' }}"
+                data-paginas="{{ libro.paginas or '' }}"
+                data-portada="{{ url_for('static', filename=libro.portada) if libro.portada else '' }}"
+                onclick="prepararEdicion(this)">{{ icono('lapiz') }}</button>
+        {% if has_permission('catalogo', 'control_total') %}
+        <form method="POST" action="{{ url_for('books.delete_book', book_id=libro.id) }}" onsubmit="return confirm('¿Eliminar este libro?');" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" title="Eliminar">{{ icono('papelera') }}</button>
+        </form>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+    <div class="badges">
+      <span class="badge {{ 'badge-verde' if libro.disponibles > 0 else 'badge-rojo' }}">
+        {{ 'Disponible' if libro.disponibles > 0 else 'Agotado' }}
+      </span>
+      <span class="badge badge-azul">{{ libro.categoria }}</span>
+    </div>
+    <div class="detalles">
+      <div>{{ icono('etiqueta') }} {{ libro.isbn or 'Sin ISBN' }}</div>
+      <div>{{ icono('edificio') }} {{ libro.editorial or 'Sin editorial' }}</div>
+      <div>{{ icono('ubicacion') }} {{ libro.ubicacion or 'Sin ubicación' }}</div>
+      <div>{{ icono('calendario') }} {{ libro.anio or '—' }}</div>
+      {% if libro.idioma %}<div>{{ icono('info') }} Idioma: {{ libro.idioma }}</div>{% endif %}
+      {% if libro.edicion %}<div>{{ icono('libro') }} Edición: {{ libro.edicion }}</div>{% endif %}
+      {% if libro.paginas %}<div>{{ icono('coleccion') }} Páginas: {{ libro.paginas }}</div>{% endif %}
+      {% if libro.lugar_publicacion %}<div>{{ icono('ubicacion') }} Publicado en: {{ libro.lugar_publicacion }}</div>{% endif %}
+      {% if libro.tipo_material %}<div>{{ icono('etiqueta') }} {{ libro.tipo_material }}</div>{% endif %}
+    </div>
+    <div class="pie-tarjeta">
+      <span>Ejemplares: {{ libro.total_ejemplares }}</span>
+      <span class="disp">Disponibles: {{ libro.disponibles }}</span>
+    </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="vacio">No se encontraron libros con esos criterios.</div>
+{% endif %}
+
+<!-- Modal: Nuevo libro -->
+<div class="overlay-modal" id="modal-nuevo-libro">
+  <div class="modal-contenido">
+    <div class="cabecera-modal">
+      <h2>Nuevo Libro</h2>
+      <button class="cerrar" onclick="cerrarModal('modal-nuevo-libro')">{{ icono('cerrar') }}</button>
+    </div>
+    <form method="POST" action="{{ url_for('books.new_book') }}" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="campo"><label>Título *</label><input type="text" name="titulo" required></div>
+      <div class="campo"><label>Autor *</label><input type="text" name="autor" required></div>
+      <div class="fila-2">
+        <div class="campo"><label>ISBN</label><input type="text" name="isbn"></div>
+        <div class="campo">
+          <label>Categoría</label>
+          <select name="categoria">
+            {% for c in categories %}<option>{{ c }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="fila-2">
+        <div class="campo"><label>Editorial</label><input type="text" name="editorial"></div>
+        <div class="campo"><label>Año</label><input type="number" name="anio"></div>
+      </div>
+      <div class="fila-2">
+        <div class="campo"><label>Total Ejemplares</label><input type="number" name="total_ejemplares" min="1" value="1"></div>
+        <div class="campo"><label>Disponibles</label><input type="number" name="disponibles" min="0" value="1"></div>
+      </div>
+      <div class="fila-2">
+        <div class="campo"><label>Idioma</label><input type="text" name="idioma" maxlength="20"></div>
+        <div class="campo"><label>Tipo de material</label><input type="text" name="tipo_material" maxlength="80" placeholder="Ej: Libro Infantil"></div>
+      </div>
+      <div class="fila-2">
+        <div class="campo"><label>Edición</label><input type="text" name="edicion" maxlength="100"></div>
+        <div class="campo"><label>Páginas</label><input type="text" name="paginas" maxlength="50"></div>
+      </div>
+      <div class="campo"><label>Lugar de publicación</label><input type="text" name="lugar_publicacion" maxlength="150"></div>
+      <div class="campo"><label>Ubicación</label><input type="text" name="ubicacion" placeholder="Ej: Estante A-3, Sección 2"></div>
+      <div class="campo"><label>Descripción</label><textarea name="descripcion" rows="3"></textarea></div>
+      <div class="campo campo-portada">
+        <label>Portada del libro (opcional)</label>
+        <input type="file" name="portada" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" onchange="previsualizarPortada(this, 'preview-nuevo')">
+        <div class="ayuda-campo">Formatos permitidos: PNG, JPG, JPEG o WEBP. Máximo 5 MB.</div>
+        <img id="preview-nuevo" class="preview-portada" style="display:none">
+      </div>
+      <div class="acciones-modal">
+        <button type="button" class="btn btn-outline" onclick="cerrarModal('modal-nuevo-libro')">Cancelar</button>
+        <button type="submit" class="btn btn-azul">Crear Libro</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Importar libros desde Excel -->
+<div class="overlay-modal" id="modal-importar-libros">
+  <div class="modal-contenido">
+    <div class="cabecera-modal">
+      <h2>Importar libros desde Excel</h2>
+      <button class="cerrar" onclick="cerrarModal('modal-importar-libros')">{{ icono('cerrar') }}</button>
+    </div>
+    <form method="POST" action="{{ url_for('books.import_books') }}" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="campo">
+        <label>Archivo Excel (.xlsx) *</label>
+        <input type="file" name="archivo_excel" accept=".xlsx" required>
+        <div class="ayuda-campo">
+          La primera fila debe tener los encabezados. Columnas reconocidas: ISBN_13,
+          ISBN_13_GUIONES, ISBN_10, ISBN_10_GUIONES, Título, Autor, Editorial,
+          "Editorial (con errores)", Ciudad, País, Materia, Audiencia, Tipomaterial,
+          FechaPublicación, Precio y archivo. Solo "Título" es obligatoria.
+        </div>
+      </div>
+      <div class="ayuda-campo">
+        Si el archivo no trae ejemplares, cada libro se crea con 1 ejemplar disponible y sin
+        portada; puedes ajustarlos después desde "Editar". "Materia" se usa como categoría y
+        los demás datos (ciudad, país, audiencia, tipo de material, precio) quedan guardados
+        en la descripción del libro. Si un ISBN ya existe en tu catálogo, esa fila se omite
+        para evitar duplicados.
+      </div>
+
+      <div class="bloque-descargas">
+        <div class="titulo-descargas">Descargar en Excel</div>
+        <p class="ayuda-campo">
+          Baja todo tu catálogo en un archivo .xlsx, o una plantilla vacía con los
+          encabezados que pide el sistema. El archivo exportado se puede editar y volver a
+          subir aquí mismo sin cambiarle nada.
+        </p>
+        <div class="acciones-descargas">
+          <a class="btn btn-outline" href="{{ url_for('books.export_books') }}">
+            {{ icono('coleccion') }} Descargar todos los datos ({{ books|length }})
+          </a>
+          <a class="btn btn-outline" href="{{ url_for('books.books_template') }}">
+            {{ icono('etiqueta') }} Descargar plantilla vacía
+          </a>
+        </div>
+      </div>
+      <div class="acciones-modal">
+        <button type="button" class="btn btn-outline" onclick="cerrarModal('modal-importar-libros')">Cancelar</button>
+        <button type="submit" class="btn btn-azul">Importar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Editar libro -->
+<div class="overlay-modal" id="modal-editar-libro">
+  <div class="modal-contenido">
+    <div class="cabecera-modal">
+      <h2>Editar Libro</h2>
+      <button class="cerrar" onclick="cerrarModal('modal-editar-libro')">{{ icono('cerrar') }}</button>
+    </div>
+    <form method="POST" id="form-editar-libro" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="campo"><label>Título *</label><input type="text" name="titulo" id="e-titulo" required></div>
+      <div class="campo"><label>Autor *</label><input type="text" name="autor" id="e-autor" required></div>
+      <div class="fila-2">
+        <div class="campo"><label>ISBN</label><input type="text" name="isbn" id="e-isbn"></div>
+        <div class="campo">
+          <label>Categoría</label>
+          <select name="categoria" id="e-categoria">
+            {% for c in categories %}<option>{{ c }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="fila-2">
+        <div class="campo"><label>Editorial</label><input type="text" name="editorial" id="e-editorial"></div>
+        <div class="campo"><label>Año</label><input type="number" name="anio" id="e-anio"></div>
+      </div>
+      <div class="fila-2">
+        <div class="campo"><label>Total Ejemplares</label><input type="number" name="total_ejemplares" id="e-total" min="0"></div>
+        <div class="campo"><label>Disponibles</label><input type="number" name="disponibles" id="e-disp" min="0"></div>
+      </div>
+      <div class="fila-2">
+        <div class="campo"><label>Idioma</label><input type="text" name="idioma" id="e-idioma" maxlength="20"></div>
+        <div class="campo"><label>Tipo de material</label><input type="text" name="tipo_material" id="e-tipo-material" maxlength="80" placeholder="Ej: Libro Infantil"></div>
+      </div>
+      <div class="fila-2">
+        <div class="campo"><label>Edición</label><input type="text" name="edicion" id="e-edicion" maxlength="100"></div>
+        <div class="campo"><label>Páginas</label><input type="text" name="paginas" id="e-paginas" maxlength="50"></div>
+      </div>
+      <div class="campo"><label>Lugar de publicación</label><input type="text" name="lugar_publicacion" id="e-lugar" maxlength="150"></div>
+      <div class="campo"><label>Ubicación</label><input type="text" name="ubicacion" id="e-ubicacion"></div>
+      <div class="campo"><label>Descripción</label><textarea name="descripcion" id="e-descripcion" rows="3"></textarea></div>
+      <div class="campo campo-portada">
+        <label>Portada del libro (opcional)</label>
+        <input type="file" name="portada" id="e-portada-archivo" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" onchange="previsualizarPortada(this, 'preview-editar')">
+        <div class="ayuda-campo">Formatos permitidos: PNG, JPG, JPEG o WEBP. Máximo 5 MB. Deja este campo vacío para conservar la portada actual.</div>
+        <img id="preview-editar" class="preview-portada" style="display:none">
+        <label class="opcion-quitar-portada" id="opcion-quitar-portada" style="display:none">
+          <input type="checkbox" name="quitar_portada" id="e-quitar-portada" value="1" onchange="document.getElementById('preview-editar').style.opacity = this.checked ? 0.35 : 1;">
+          Quitar la portada actual
+        </label>
+      </div>
+      <div class="acciones-modal">
+        <button type="button" class="btn btn-outline" onclick="cerrarModal('modal-editar-libro')">Cancelar</button>
+        <button type="submit" class="btn btn-azul">Guardar Cambios</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Lightbox: portada en alta resolución -->
+<div class="lightbox-portada" id="lightbox-portada" onclick="cerrarLightbox(event)">
+  <button type="button" class="cerrar-lightbox" onclick="cerrarLightbox(event)" title="Cerrar">{{ icono('cerrar') }}</button>
+  <img id="lightbox-portada-img" src="" alt="">
+</div>
+
+<script>
+function abrirLightbox(url, titulo) {
+  const lightbox = document.getElementById('lightbox-portada');
+  const img = document.getElementById('lightbox-portada-img');
+  img.src = url;
+  img.alt = 'Portada de ' + titulo;
+  lightbox.classList.add('abierto');
+}
+
+function cerrarLightbox(evento) {
+  // Cierra al hacer clic en cualquier parte del overlay o en el botón,
+  // pero no al hacer clic sobre la imagen misma.
+  if (evento.target.id === 'lightbox-portada-img') return;
+  document.getElementById('lightbox-portada').classList.remove('abierto');
+}
+
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') {
+    document.getElementById('lightbox-portada').classList.remove('abierto');
+  }
+});
+
+function prepararEdicion(btn) {
+  const dataset = btn.dataset;
+  document.getElementById('form-editar-libro').action = "/catalogo/editar/" + dataset.id;
+  document.getElementById('e-titulo').value = dataset.titulo;
+  document.getElementById('e-autor').value = dataset.autor;
+  document.getElementById('e-isbn').value = dataset.isbn;
+  // Las categorías de la base (p. ej. importadas) pueden no estar en la lista fija:
+  // se añaden como opción para que editar NO cambie la categoría sin querer.
+  const selCat = document.getElementById('e-categoria');
+  if (dataset.categoria && ![...selCat.options].some(o => o.value === dataset.categoria)) {
+    const extraOpt = document.createElement('option');
+    extraOpt.textContent = dataset.categoria;
+    extraOpt.value = dataset.categoria;
+    selCat.appendChild(extraOpt);
+  }
+  selCat.value = dataset.categoria;
+  document.getElementById('e-idioma').value = dataset.idioma || '';
+  document.getElementById('e-tipo-material').value = dataset.tipoMaterial || '';
+  document.getElementById('e-edicion').value = dataset.edicion || '';
+  document.getElementById('e-paginas').value = dataset.paginas || '';
+  document.getElementById('e-lugar').value = dataset.lugar || '';
+  document.getElementById('e-editorial').value = dataset.editorial;
+  document.getElementById('e-anio').value = dataset.anio;
+  document.getElementById('e-total').value = dataset.total;
+  document.getElementById('e-disp').value = dataset.disp;
+  document.getElementById('e-ubicacion').value = dataset.ubicacion;
+  document.getElementById('e-descripcion').value = dataset.descripcion;
+
+  // Portada: limpiar el input de archivo y el checkbox de "quitar" de una
+  // edición anterior, y precargar la vista previa con la portada actual.
+  document.getElementById('e-portada-archivo').value = '';
+  const checkboxQuitar = document.getElementById('e-quitar-portada');
+  checkboxQuitar.checked = false;
+  const preview = document.getElementById('preview-editar');
+  const opcionQuitar = document.getElementById('opcion-quitar-portada');
+  preview.style.opacity = 1;
+  if (dataset.portada) {
+    preview.src = dataset.portada;
+    preview.style.display = 'block';
+    opcionQuitar.style.display = 'flex';
+  } else {
+    preview.src = '';
+    preview.style.display = 'none';
+    opcionQuitar.style.display = 'none';
+  }
+
+  abrirModal('modal-editar-libro');
+}
+
+// Muestra una vista previa de la imagen elegida antes de subirla.
+function previsualizarPortada(input, idPreview) {
+  const preview = document.getElementById(idPreview);
+  const archivo = input.files && input.files[0];
+  if (!archivo) return;
+
+  const lector = new FileReader();
+  lector.onload = function (evento) {
+    preview.src = evento.target.result;
+    preview.style.display = 'block';
+    preview.style.opacity = 1;
+  };
+  lector.readAsDataURL(archivo);
+
+  // Si estaban por quitar la portada y ahora subieron una nueva, se
+  // desmarca esa opción (la nueva imagen tiene prioridad).
+  const checkboxQuitar = document.getElementById('e-quitar-portada');
+  if (checkboxQuitar) checkboxQuitar.checked = false;
+}
+</script>
+{% endblock %}

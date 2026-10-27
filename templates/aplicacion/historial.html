@@ -1,0 +1,102 @@
+{% extends "aplicacion/layout.html" %}
+{% from 'iconos.html' import icono %}
+{% block titulo %}Historial — DataBook{% endblock %}
+
+{% block contenido %}
+<div class="app-header-row">
+  <div>
+    <h1>Historial</h1>
+    <p>Archivo de préstamos devueltos y multas pagadas</p>
+  </div>
+</div>
+
+<form method="GET" class="barra-filtros">
+  <div class="buscar">
+    <span class="icono-buscar">{{ icono('buscar') }}</span>
+    <input type="text" name="q" value="{{ search_term }}" placeholder="Buscar por libro, ISBN, miembro o ID...">
+  </div>
+  <input type="hidden" name="tab" id="input-tab-actual" value="{{ tab }}">
+</form>
+
+<div class="tabs-historial">
+  <button type="button" class="tab-historial {{ 'activa' if tab != 'multas' }}" onclick="cambiarPestanaHistorial('devueltos')">
+    {{ icono('devolver') }} Libros Devueltos ({{ returned_books|length }})
+  </button>
+  <button type="button" class="tab-historial {{ 'activa' if tab == 'multas' }}" onclick="cambiarPestanaHistorial('multas')">
+    {{ icono('alarma') }} Multas Pagadas ({{ paid_fines|length }})
+  </button>
+</div>
+
+<div class="panel-tab-historial {{ 'activa' if tab != 'multas' }}" id="panel-devueltos">
+  <div class="tabla-wrap">
+    <table class="tabla-datos">
+      <thead>
+        <tr>
+          <th>Libro</th><th>ISBN</th><th>Miembro</th><th>ID</th><th>Fecha Préstamo</th><th>Fecha Devolución</th><th>Fecha Devuelto</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in returned_books %}
+        <tr>
+          <td><b>{{ p.libro_titulo }}</b></td>
+          <td>{{ p.libro_isbn or '—' }}</td>
+          <td>{{ p.miembro_nombre }}</td>
+          <td>{{ p.documento_id }}</td>
+          <td>{{ p.fecha_prestamo | format_date }}</td>
+          <td>{{ p.fecha_devolucion | format_date }}</td>
+          <td>{{ p.fecha_devuelto | format_date }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="vacio">Todavía no hay libros devueltos en el historial.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="panel-tab-historial {{ 'activa' if tab == 'multas' }}" id="panel-multas">
+  <div class="tabla-wrap">
+    <table class="tabla-datos">
+      <thead>
+        <tr>
+          <th>Miembro</th><th>ID</th><th>Libro</th><th>ISBN</th><th>Infracción</th><th>Monto</th><th>Fecha de Pago</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in paid_fines %}
+        <tr>
+          <td>{{ m.miembro_nombre }}</td>
+          <td>{{ m.documento_id }}</td>
+          <td>{{ m.libro_titulo }}</td>
+          <td>{{ m.isbn or '—' }}</td>
+          <td>{{ m.tipo_infraccion }}</td>
+          <td>${{ "{:,.0f}".format(m.monto) }}</td>
+          <td>{{ m.fecha_pago | format_date }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="vacio">Todavía no hay multas pagadas en el historial.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function cambiarPestanaHistorial(pestana) {
+  document.getElementById('input-tab-actual').value = pestana;
+
+  document.querySelectorAll('.tab-historial').forEach(function (btn) { btn.classList.remove('activa'); });
+  document.querySelectorAll('.panel-tab-historial').forEach(function (panel) { panel.classList.remove('activa'); });
+
+  if (pestana === 'multas') {
+    document.querySelectorAll('.tab-historial')[1].classList.add('activa');
+    document.getElementById('panel-multas').classList.add('activa');
+  } else {
+    document.querySelectorAll('.tab-historial')[0].classList.add('activa');
+    document.getElementById('panel-devueltos').classList.add('activa');
+  }
+}
+</script>
+{% endblock %}
