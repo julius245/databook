@@ -8,7 +8,13 @@ member_bp = Blueprint('members', __name__, url_prefix='/miembros')
 def list_members():
     conn = _connect()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM usuarios ORDER BY id DESC")
+    cursor.execute("""
+        SELECT miembros.*,
+               trim(concat_ws(' ', primer_nombre, segundo_nombre,
+                              primer_apellido, segundo_apellido)) AS nombre_completo
+        FROM miembros
+        ORDER BY id DESC
+    """)
     miembros = cursor.fetchall()
     conn.close()
     return render_template('aplicacion/cuentas.html', miembros=miembros)

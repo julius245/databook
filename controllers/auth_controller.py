@@ -26,6 +26,10 @@ def login():
             session['user_id'] = user['id']
             session['user_name'] = user['nombre']
             session['role'] = user.get('rol', 'usuario')
+            # Claves que utilizan las plantillas de la aplicación
+            session['usuario_nombre'] = user['nombre']
+            session['rol'] = user.get('rol', 'usuario')
+            session['modulos'] = (user.get('modulos_permitidos') or '').split(',')
             flash("Bienvenido al sistema", "success")
             return redirect(url_for('dashboard.index'))
         else:
@@ -88,7 +92,78 @@ def change_password():
 def google_auth():
     return {"status": "success", "message": "Google auth en desarrollo"}, 200
 
-# Cierra la sesion del usuario
+# Perfil del usuario autenticado
+@auth_bp.route('/perfil')
+def profile():
+    user_id = session.get('user_id')
+    if not user_id:
+        return redirect(url_for('auth.login'))
+
+    conn = _connect()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM usuarios WHERE id = %s", (user_id,))
+        user = cursor.fetchone()
+        if not user:
+            session.clear()
+            return redirect(url_for('auth.login'))
+
+        full_name = user.get('nombre') or 'Usuario'
+        permissions = {
+            'catalogo': user.get('permiso_catalogo', 'control_total'),
+            'miembros': user.get('permiso_miembros', 'control_total'),
+            'prestamos': user.get('permiso_prestamos', 'control_total'),
+            'multas': user.get('permiso_multas', 'control_total'),
+        }
+        library = session.get('biblioteca_nombre')
+        return render_template(
+            'aplicacion/perfil.html',
+            user=user,
+            full_name=full_name,
+            library=library,
+            staff_email=None,
+            permissions=permissions,
+        )
+    finally:
+        conn.close()
+
+
+# Ajustes del usuario autenticado
+@auth_bp.route('/ajustes')
+def settings():
+    user_id = session.get('user_id')
+    if not user_id:
+        return redirect(url_for('auth.login'))
+
+    conn = _connect()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM usuarios WHERE id = %s", (user_id,))
+        user = cursor.fetchone()
+        if not user:
+            session.clear()
+            return redirect(url_for('auth.login'))
+
+        library_config = None
+        try:
+            cursor.execute("SELECT * FROM configuracion_biblioteca WHERE id = 1")
+            library_config = cursor.fetchone()
+        except Exception:
+            library_config = None
+
+        return render_template(
+            'aplicacion/ajustes.html',
+            user=user,
+            library=library_config.get('nombre') if library_config else session.get('biblioteca_nombre'),
+            library_config=library_config,
+            current_theme=user.get('tema', 'sistema'),
+            document_types=get_document_types(),
+        )
+    finally:
+        conn.close()
+
+
+# Cierra la sesion del usuario autenticado
 @auth_bp.route('/logout')
 def logout():
     session.clear()

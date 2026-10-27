@@ -9,7 +9,7 @@
     <p>Recordatorios por correo de préstamos por vencer o vencidos</p>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
-    <a class="btn btn-outline" href="{{ url_for('loans.loans') }}">Volver a Préstamos</a>
+    <a class="btn btn-outline" href="{{ url_for('loans.list_loans') }}">Volver a Préstamos</a>
     {% if has_permission('prestamos', 'editor') %}
     <form method="POST" action="{{ url_for('loans.send_notifications') }}" style="display:inline;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

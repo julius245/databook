@@ -59,6 +59,98 @@ def create_app():
     app.register_blueprint(history_bp)
     app.register_blueprint(team_bp)
 
+    # Alias de compatibilidad para nombres antiguos usados en algunas plantillas.
+    # Las vistas principales ya tienen nombres canónicos, por lo que estos alias
+    # evitan BuildError si una plantilla antigua todavía los referencia.
+    aliases = {
+        'books.catalog': 'books.list_books',
+        'loans.loans': 'loans.list_loans',
+        'members.members': 'members.list_members',
+        'fines.fines': 'fines.list_fines',
+        'sanctions.sanctions': 'sanctions.index',
+        'history.history': 'history.index',
+        'reports.reports': 'reports.index',
+        'team.team': 'team.index',
+        'superadmin.panel': 'superadmin.index',
+    }
+    for alias, target in aliases.items():
+        if target in app.view_functions and alias not in app.view_functions:
+            app.add_url_rule(
+                f'/_compat/{alias.replace(".", "/")}',
+                endpoint=alias,
+                view_func=app.view_functions[target],
+                methods=['GET'],
+            )
+
+    # Endpoints que las plantillas referencian, pero que aún no tienen lógica
+    # de negocio implementada en los controladores. Se registran de forma segura
+    # para que las páginas no fallen al renderizar con BuildError. Al usarlos,
+    # se informa que la acción sigue pendiente y se vuelve a la sección adecuada.
+    pendientes = {
+        'auth.api_forgot_password',
+        'auth.change_my_password',
+        'auth.edit_my_library',
+        'auth.edit_my_profile',
+        'auth.reset_password',
+        'auth.save_theme',
+        'books.books_template',
+        'books.delete_book',
+        'books.export_books',
+        'books.import_books',
+        'fines.activate_fine',
+        'fines.cancel_fine',
+        'fines.pay_fine',
+        'loans.new_loan',
+        'loans.return_loan',
+        'loans.send_notifications',
+        'members.export_members',
+        'members.import_members',
+        'members.members_template',
+        'members.new_member',
+        'sanctions.cancel_sanction',
+        'sanctions.complete_sanction',
+        'sanctions.new_sanction',
+        'superadmin.delete_staff',
+        'superadmin.restrict_staff',
+        'team.delete_librarian',
+        'team.edit_librarian',
+        'team.librarian_permissions',
+        'team.new_librarian',
+        'team.require_password_change',
+        'team.reset_librarian_password',
+        'team.restrict_librarian',
+    }
+
+    def accion_pendiente():
+        from flask import request
+        from flask import flash as flash_message
+        flash_message(
+            'Esta acción todavía no está implementada en el servidor.',
+            'warning'
+        )
+        endpoint = request.endpoint or ''
+        destino = {
+            'books': 'books.list_books',
+            'members': 'members.list_members',
+            'loans': 'loans.list_loans',
+            'fines': 'fines.list_fines',
+            'sanctions': 'sanctions.index',
+            'team': 'team.index',
+            'superadmin': 'superadmin.index',
+            'auth': 'auth.settings',
+        }.get(endpoint.split('.', 1)[0], 'dashboard.index')
+        return redirect(url_for(destino))
+
+    for endpoint in pendientes:
+        if endpoint not in app.view_functions:
+            slug = endpoint.replace('.', '-').replace('_', '-')
+            app.add_url_rule(
+                f'/_pendiente/{slug}',
+                endpoint=endpoint,
+                view_func=accion_pendiente,
+                methods=['GET', 'POST'],
+            )
+
    # Ruta raiz del proyecto: cuando alguien entra al dominio los manda al inicio
     @app.route('/')
     def index():

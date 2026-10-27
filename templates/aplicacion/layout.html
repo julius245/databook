@@ -85,7 +85,7 @@
                 {% if session.get('rol') != 'bibliotecario'
                       or 'multas' in session.get('modulos', []) %}
 
-                <a href="{{ url_for('fines.fines') }}"
+                <a href="{{ url_for('fines.list_fines') }}"
                    class="{{ 'activo' if request.endpoint and request.endpoint.startswith('fines.') else '' }}"
                    title="Multas">
                     {{ icono('alarma') }}
@@ -98,7 +98,7 @@
                 {% if session.get('rol') != 'bibliotecario'
                       or 'multas' in session.get('modulos', []) %}
 
-                <a href="{{ url_for('sanctions.sanctions') }}"
+                <a href="{{ url_for('sanctions.index') }}"
                    class="{{ 'activo' if request.endpoint and request.endpoint.startswith('sanctions.') else '' }}"
                    title="Sanciones">
                     {{ icono('escudo') }}
@@ -112,7 +112,7 @@
                       or 'prestamos' in session.get('modulos', [])
                       or 'multas' in session.get('modulos', []) %}
 
-                <a href="{{ url_for('history.history') }}"
+                <a href="{{ url_for('history.index') }}"
                    class="{{ 'activo' if request.endpoint and request.endpoint.startswith('history.') else '' }}"
                    title="Historial">
                     {{ icono('calendario') }}
@@ -128,7 +128,7 @@
                       or 'catalogo' in session.get('modulos', [])
                       or 'miembros' in session.get('modulos', []) %}
 
-                <a href="{{ url_for('reports.reports') }}"
+                <a href="{{ url_for('reports.index') }}"
                    class="{{ 'activo' if request.endpoint and request.endpoint.startswith('reports.') else '' }}"
                    title="Reportes">
                     {{ icono('estadisticas') }}
@@ -140,7 +140,7 @@
                 <!-- Equipo -->
                 {% if session.get('rol') == 'staff' %}
 
-                <a href="{{ url_for('team.team') }}"
+                <a href="{{ url_for('team.index') }}"
                    class="{{ 'activo' if request.endpoint and request.endpoint.startswith('team.') else '' }}"
                    title="Mi Equipo">
                     {{ icono('personas-lleno') }}

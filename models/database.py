@@ -17,16 +17,10 @@ def _connect():
     database_url = os.getenv('DATABASE_URL')
     
     if database_url:
-        url = urlparse(database_url)
+        # psycopg2 interpreta correctamente URLs con contraseñas codificadas.
         return psycopg2.connect(
-            database=url.path[1:],
-            user=url.username,
-            password=url.password,
-            host=url.hostname,
-            port=url.port,
-            # Render exige SSL en conexiones externas; si ya usas la URL interna, no estorba
+            database_url,
             sslmode=os.getenv('DB_SSLMODE', 'prefer'),
-            # Las filas se devuelven como diccionarios: user['email'], total['total'], etc.
             cursor_factory=psycopg2.extras.RealDictCursor
         )
     else:

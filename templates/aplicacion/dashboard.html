@@ -11,13 +11,13 @@
   </div>
   <div class="dash-accesos">
     {% if has_permission('prestamos', 'editor') %}
-    <a class="btn btn-azul" href="{{ url_for('loans.loans') }}">{{ icono('recargar') }} Nuevo préstamo</a>
+    <a class="btn btn-azul" href="{{ url_for('loans.list_loans') }}">{{ icono('recargar') }} Nuevo préstamo</a>
     {% endif %}
     {% if has_permission('catalogo', 'editor') %}
-    <a class="btn btn-outline" href="{{ url_for('books.catalog') }}">{{ icono('libro') }} Catálogo</a>
+    <a class="btn btn-outline" href="{{ url_for('books.list_books') }}">{{ icono('libro') }} Catálogo</a>
     {% endif %}
     {% if has_permission('miembros', 'editor') %}
-    <a class="btn btn-outline" href="{{ url_for('members.members') }}">{{ icono('persona-agregar') }} Miembros</a>
+    <a class="btn btn-outline" href="{{ url_for('members.list_members') }}">{{ icono('persona-agregar') }} Miembros</a>
     {% endif %}
   </div>
 </div>
@@ -33,7 +33,7 @@
        a tus miembros y ya podrás prestar.</p>
   </div>
   {% if has_permission('catalogo', 'editor') %}
-  <a class="btn btn-azul" href="{{ url_for('books.catalog') }}">Ir al catálogo</a>
+  <a class="btn btn-azul" href="{{ url_for('books.list_books') }}">Ir al catálogo</a>
   {% endif %}
 </div>
 {% endif %}
