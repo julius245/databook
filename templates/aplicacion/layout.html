@@ -57,15 +57,15 @@
 
                 <!-- Miembros -->
                 {% if session.get('rol') != 'bibliotecario'
-                      or 'miembros' in session.get('modulos', []) %}
+                  or 'miembros' in session.get('modulos', []) %}
 
-                <a href="{{ url_for('members.members') }}"
-                   class="{{ 'activo' if request.endpoint and request.endpoint.startswith('members.') else '' }}"
-                   title="Miembros">
-                    {{ icono('personas') }}
-                    <span class="texto-link">Miembros</span>
-                </a>
-
+                  <a href="{{ url_for('members.list_members') }}"
+                    class="{{ 'activo' if request.endpoint and request.endpoint.startswith('members.') else '' }}"
+                    title="Miembros">
+                      {{ icono('personas') }}
+                      <span class="texto-link">Miembros</span>
+                  </a>
+                  
                 {% endif %}
 
                 <!-- Préstamos -->
