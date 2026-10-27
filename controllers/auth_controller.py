@@ -2,6 +2,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from models.database import _connect
 from security import hash_password, check_password
+from controllers.geo_data import get_countries, get_timezones, get_document_types
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -64,8 +65,12 @@ def register():
         finally:
             conn.close()
             
-    return render_template('web/register.html')
-
+    return render_template(
+        'web/register.html',
+        countries=get_countries(),
+        timezones=get_timezones(),
+        document_types=get_document_types()
+    )
 # Ruta para recuperar/cambiar contraseña
 @auth_bp.route('/change-password', methods=['GET', 'POST'])
 def change_password():
