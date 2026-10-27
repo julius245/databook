@@ -81,7 +81,7 @@
     .then(res => res.json())
     .then(data => {
       if (data.success) {
-        window.location.href = "{{ url_for('dashboard.view_dashboard') }}";
+        window.location.href = "{{ url_for('dashboard.index') }}";
       } else {
         alert("Error al autenticar con Google: " + (data.message || "Inténtalo de nuevo."));
       }
