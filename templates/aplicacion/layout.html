@@ -65,14 +65,14 @@
                       {{ icono('personas') }}
                       <span class="texto-link">Miembros</span>
                   </a>
-                  
+
                 {% endif %}
 
                 <!-- Préstamos -->
                 {% if session.get('rol') != 'bibliotecario'
                       or 'prestamos' in session.get('modulos', []) %}
 
-                <a href="{{ url_for('loans.loans') }}"
+                <a href="{{ url_for('loans.list_loans') }}" 
                    class="{{ 'activo' if request.endpoint and request.endpoint.startswith('loans.') else '' }}"
                    title="Préstamos">
                     {{ icono('recargar') }}
