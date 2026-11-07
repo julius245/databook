@@ -1,0 +1,352 @@
+{% from 'iconos.html' import icono, logo %}
+<!DOCTYPE html>
+<html lang="es" data-tema="{{ session.get('tema', 'sistema') }}">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>{% block titulo %}DataBook{% endblock %}</title>
+
+    <link rel="icon" type="image/svg+xml"
+          href="{{ url_for('static', filename='img/favicon.svg') }}">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+          rel="stylesheet">
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='bootstrap/bootstrap.min.css') }}">
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+
+    <div class="app-layout">
+
+        <!-- Barra lateral -->
+        <aside class="app-sidebar" id="sidebar">
+
+            <div class="brand">
+                {{ logo(26) }}
+                <span class="texto-link">DataBook</span>
+            </div>
+
+            <nav>
+
+                <!-- Dashboard -->
+                <a href="{{ url_for('dashboard.index') }}"
+                   class="{{ 'activo' if request.endpoint == 'dashboard.index' else '' }}"
+                   title="Dashboard">
+                    {{ icono('grafico') }}
+                    <span class="texto-link">Dashboard</span>
+                </a>
+
+                <!-- Catálogo -->
+                {% if session.get('rol') != 'bibliotecario'
+                      or 'catalogo' in session.get('modulos', []) %}
+
+                <a href="{{ url_for('books.list_books') }}" class="{{ 'activo' if request.endpoint and request.endpoint.startswith('books.') }}" title="Catálogo">{{ icono('libro') }} <span class="texto-link">Catálogo</span></a>
+                  
+
+                {% endif %}
+
+                <!-- Miembros -->
+                {% if session.get('rol') != 'bibliotecario'
+                  or 'miembros' in session.get('modulos', []) %}
+
+                  <a href="{{ url_for('members.list_members') }}"
+                    class="{{ 'activo' if request.endpoint and request.endpoint.startswith('members.') else '' }}"
+                    title="Miembros">
+                      {{ icono('personas') }}
+                      <span class="texto-link">Miembros</span>
+                  </a>
+
+                {% endif %}
+
+                <!-- Préstamos -->
+                {% if session.get('rol') != 'bibliotecario'
+                      or 'prestamos' in session.get('modulos', []) %}
+
+                <a href="{{ url_for('loans.list_loans') }}" 
+                   class="{{ 'activo' if request.endpoint and request.endpoint.startswith('loans.') else '' }}"
+                   title="Préstamos">
+                    {{ icono('recargar') }}
+                    <span class="texto-link">Préstamos</span>
+                </a>
+
+                {% endif %}
+
+                <!-- Multas -->
+                {% if session.get('rol') != 'bibliotecario'
+                      or 'multas' in session.get('modulos', []) %}
+
+                <a href="{{ url_for('fines.list_fines') }}"
+                   class="{{ 'activo' if request.endpoint and request.endpoint.startswith('fines.') else '' }}"
+                   title="Multas">
+                    {{ icono('alarma') }}
+                    <span class="texto-link">Multas</span>
+                </a>
+
+                {% endif %}
+
+                <!-- Sanciones -->
+                {% if session.get('rol') != 'bibliotecario'
+                      or 'multas' in session.get('modulos', []) %}
+
+                <a href="{{ url_for('sanctions.index') }}"
+                   class="{{ 'activo' if request.endpoint and request.endpoint.startswith('sanctions.') else '' }}"
+                   title="Sanciones">
+                    {{ icono('escudo') }}
+                    <span class="texto-link">Sanciones</span>
+                </a>
+
+                {% endif %}
+
+                <!-- Historial -->
+                {% if session.get('rol') != 'bibliotecario'
+                      or 'prestamos' in session.get('modulos', [])
+                      or 'multas' in session.get('modulos', []) %}
+
+                <a href="{{ url_for('history.index') }}"
+                   class="{{ 'activo' if request.endpoint and request.endpoint.startswith('history.') else '' }}"
+                   title="Historial">
+                    {{ icono('calendario') }}
+                    <span class="texto-link">Historial</span>
+                </a>
+
+                {% endif %}
+
+                <!-- Reportes -->
+                {% if session.get('rol') in ['staff', 'superadmin']
+                      or 'prestamos' in session.get('modulos', [])
+                      or 'multas' in session.get('modulos', [])
+                      or 'catalogo' in session.get('modulos', [])
+                      or 'miembros' in session.get('modulos', []) %}
+
+                <a href="{{ url_for('reports.index') }}"
+                   class="{{ 'activo' if request.endpoint and request.endpoint.startswith('reports.') else '' }}"
+                   title="Reportes">
+                    {{ icono('estadisticas') }}
+                    <span class="texto-link">Reportes</span>
+                </a>
+
+                {% endif %}
+
+                <!-- Equipo -->
+                {% if session.get('rol') == 'staff' %}
+
+                <a href="{{ url_for('team.index') }}"
+                   class="{{ 'activo' if request.endpoint and request.endpoint.startswith('team.') else '' }}"
+                   title="Mi Equipo">
+                    {{ icono('personas-lleno') }}
+                    <span class="texto-link">Mi Equipo</span>
+                </a>
+
+                {% endif %}
+
+            </nav>
+
+            <!-- Pie de la barra lateral -->
+            <div class="pie-sidebar">
+
+                <div class="perfil-sidebar-card" style="position: relative;">
+
+                    <button type="button"
+                            onclick="togglePerfil()"
+                            class="perfil-sidebar-trigger"
+                            title="{{ session.get('usuario_nombre', 'Usuario') }}">
+
+                        <div class="perfil-mini-avatar">
+                            {{ (session.get('usuario_nombre') or 'U')[:1].upper() }}
+                        </div>
+
+                        <div class="perfil-meta">
+                            <strong>{{ session.get('usuario_nombre', 'Usuario') }}</strong>
+
+                            <small>
+                                {{ session.get('biblioteca_nombre') or 'Biblioteca' }}
+                            </small>
+                        </div>
+
+                        <span id="flecha-perfil" class="flecha-perfil">▾</span>
+
+                    </button>
+
+                    <div id="menu-perfil" class="perfil-menu">
+
+                        <a href="{{ url_for('auth.profile') }}">
+                            {{ icono('ojo') }}
+                            Ver mi perfil
+                        </a>
+
+                        <a href="{{ url_for('auth.settings') }}">
+                            {{ icono('engranaje') }}
+                            Ajustes
+                        </a>
+
+                    </div>
+
+                </div>
+
+                <!-- Contraer o expandir la barra lateral -->
+                <a href="#" id="btn-colapsar" title="Desplegar">
+                    <span id="icono-colapsar">‹</span>
+                    <span class="texto-link">Desplegar</span>
+                </a>
+
+                <!-- Cerrar sesión -->
+                <a href="{{ url_for('auth.logout') }}"
+                   class="salir"
+                   title="Cerrar sesión">
+                    ⏻
+                    <span class="texto-link">Cerrar sesión</span>
+                </a>
+
+            </div>
+
+        </aside>
+
+        <!-- Contenido principal -->
+        <main class="app-content">
+
+            {% with mensajes = get_flashed_messages(with_categories=true) %}
+
+                {% if mensajes %}
+
+                    {% for categoria, mensaje in mensajes %}
+
+                    <div class="flash flash-{{ categoria }}">
+                        {{ mensaje }}
+                    </div>
+
+                    {% endfor %}
+
+                {% endif %}
+
+            {% endwith %}
+
+            {% block contenido %}{% endblock %}
+
+        </main>
+
+    </div>
+
+    {% block modales %}{% endblock %}
+
+    <!-- Scripts globales -->
+    <script>
+        // Abrir modal
+        function abrirModal(id) {
+            const modal = document.getElementById(id);
+
+            if (modal) {
+                modal.classList.add('abierto');
+            }
+        }
+
+        // Cerrar modal
+        function cerrarModal(id) {
+            const modal = document.getElementById(id);
+
+            if (modal) {
+                modal.classList.remove('abierto');
+            }
+        }
+
+        // Cerrar el menú de perfil al hacer clic fuera de él.
+        // Los modales no se cierran automáticamente al hacer clic fuera
+        // ni al pulsar Escape.
+
+        window.onclick = function (e) {
+            const menu = document.getElementById('menu-perfil');
+            const flecha = document.getElementById('flecha-perfil');
+
+            if (
+                menu &&
+                menu.style.display === 'block' &&
+                !e.target.closest('.pie-sidebar')
+            ) {
+                menu.style.display = 'none';
+
+                if (flecha) {
+                    flecha.textContent = '▾';
+                }
+            }
+        };
+
+        // Mostrar u ocultar el menú de perfil
+        function togglePerfil() {
+            const menu = document.getElementById('menu-perfil');
+            const flecha = document.getElementById('flecha-perfil');
+
+            if (!menu) {
+                return;
+            }
+
+            const abierto = menu.style.display === 'block';
+
+            menu.style.display = abierto ? 'none' : 'block';
+
+            if (flecha) {
+                flecha.textContent = abierto ? '▾' : '▴';
+            }
+        }
+
+        // Contraer o expandir la barra lateral.
+        // La preferencia se guarda en localStorage.
+
+        (function () {
+            const sidebar = document.getElementById('sidebar');
+            const btn = document.getElementById('btn-colapsar');
+            const iconoColapsar = document.getElementById('icono-colapsar');
+
+            if (!sidebar || !btn) {
+                return;
+            }
+
+            function aplicarEstado(colapsado) {
+                sidebar.classList.toggle('colapsado', colapsado);
+
+                if (iconoColapsar) {
+                    iconoColapsar.textContent = colapsado ? '›' : '‹';
+                }
+            }
+
+            try {
+                aplicarEstado(
+                    localStorage.getItem('sidebar-colapsado') === '1'
+                );
+            } catch (error) {
+                aplicarEstado(false);
+            }
+
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+
+                const nuevoEstado =
+                    !sidebar.classList.contains('colapsado');
+
+                aplicarEstado(nuevoEstado);
+
+                try {
+                    localStorage.setItem(
+                        'sidebar-colapsado',
+                        nuevoEstado ? '1' : '0'
+                    );
+                } catch (error) {
+                    // La barra lateral sigue funcionando aunque
+                    // el navegador no permita guardar la preferencia.
+                }
+            });
+        })();
+    </script>
+
+    {% block scripts %}{% endblock %}
+
+</body>
+</html>

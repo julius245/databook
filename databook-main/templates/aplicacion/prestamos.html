@@ -1,0 +1,390 @@
+{% extends "aplicacion/layout.html" %}
+{% from 'iconos.html' import icono %}
+{% block titulo %}Préstamos — DataBook{% endblock %}
+
+{% block contenido %}
+<div class="app-header-row">
+  <div>
+    <h1>Préstamos</h1>
+    <p>{{ loans|length }} préstamo(s) en curso</p>
+  </div>
+  {% if has_permission('prestamos', 'editor') %}
+  <button class="btn btn-azul" onclick="abrirModal('modal-nuevo-prestamo')">+ Nuevo Préstamo</button>
+  {% endif %}
+</div>
+
+<form method="GET" class="barra-filtros">
+  <div class="buscar">
+    <span class="icono-buscar">{{ icono('buscar') }}</span>
+    <input type="text" name="q" value="{{ search_term }}" placeholder="Buscar por libro, autor, ISBN, miembro, ID o email...">
+  </div>
+  <select name="estado" onchange="this.form.submit()">
+    {% for opcion in filters %}
+      <option value="{{ opcion }}" {{ 'selected' if filter_value == opcion }}>{{ 'Todos' if opcion == 'Todos' else opcion ~ 's' }}</option>
+    {% endfor %}
+  </select>
+</form>
+
+<div class="tabla-wrap">
+  <table class="tabla-datos">
+    <thead>
+      <tr>
+        <th>Libro</th><th>Miembro</th><th>Fecha Préstamo</th><th>Fecha Devolución</th><th>Estado</th><th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in loans %}
+      {% set puede_devolver = has_permission('prestamos', 'editor') %}
+      {% set puede_multar = has_permission('multas', 'editor') %}
+      <tr>
+        <td><b>{{ p.libro_titulo }}</b><div class="subtexto">{{ p.libro_autor }}{% if p.libro_isbn %} · ISBN {{ p.libro_isbn }}{% endif %}</div></td>
+        <td>{{ p.miembro_nombre }}<div class="subtexto">ID {{ p.documento_id }}</div></td>
+        <td>{{ p.fecha_prestamo | format_date }}</td>
+        <td>{{ p.fecha_devolucion | format_date }}</td>
+        <td>
+          {% if p.estado_visible == 'Vencido' %}
+            <span class="badge badge-rojo">Vencido</span>
+          {% else %}
+            <span class="badge badge-azul">Activo</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if puede_devolver or puede_multar %}
+          <div class="gestion-prestamo">
+            <button type="button" class="btn btn-outline btn-sm" aria-expanded="false"
+                    aria-controls="gestion-{{ p.id }}" onclick="alternarGestion(this)">Gestionar</button>
+            <div class="gestion-opciones" id="gestion-{{ p.id }}" hidden>
+              {% if puede_devolver %}
+              <form method="POST" action="{{ url_for('loans.return_loan', loan_id=p.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-outline btn-sm">{{ icono('devolver') }} Devolver</button>
+              </form>
+              {% endif %}
+              {% if puede_multar %}
+              <button type="button" class="btn btn-outline btn-sm btn-multar"
+                      data-prestamo="{{ p.id }}"
+                      data-libro="{{ p.libro_titulo }}"
+                      data-miembro="{{ p.miembro_nombre }}"
+                      data-vencimiento="{{ p.fecha_devolucion }}"
+                      data-vencido="{{ 1 if p.estado_visible == 'Vencido' else 0 }}"
+                      onclick="abrirMulta(this)">{{ icono('alarma') }} Multar</button>
+              {% endif %}
+            </div>
+          </div>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="vacio">No hay préstamos en curso que coincidan con el filtro.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block modales %}
+<div class="overlay-modal" id="modal-nuevo-prestamo">
+  <div class="modal">
+    <div class="cabecera-modal">
+      <h2>Nuevo Préstamo</h2>
+      <button class="cerrar" onclick="cerrarModal('modal-nuevo-prestamo')">{{ icono('cerrar') }}</button>
+    </div>
+    <form method="POST" action="{{ url_for('loans.new_loan') }}" onsubmit="return validarNuevoPrestamo(event)">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="campo">
+        <label>Libro *</label>
+        <div class="selector-buscable" id="selector-libro">
+          <input type="text" id="buscar-libro" autocomplete="off" required
+                 placeholder="Escribe el título, autor o ISBN..."
+                 oninput="filtrarLibros(this.value)"
+                 onfocus="filtrarLibros(this.value)">
+          <input type="hidden" name="libro_id" id="libro_id">
+          <div class="resultados-buscable" id="resultados-libro"></div>
+        </div>
+      </div>
+      <div class="campo">
+        <label>Miembro *</label>
+        <div class="selector-buscable" id="selector-miembro">
+          <input type="text" id="buscar-miembro" autocomplete="off" required
+                 placeholder="Escribe el nombre o el ID (documento)..."
+                 oninput="filtrarMiembros(this.value)"
+                 onfocus="filtrarMiembros(this.value)">
+          <input type="hidden" name="miembro_id" id="miembro_id">
+          <div class="resultados-buscable" id="resultados-miembro"></div>
+        </div>
+      </div>
+      <div class="fila-2">
+        <div class="campo"><label>Fecha de Préstamo</label><input type="date" name="fecha_prestamo" id="input-fecha-prestamo" value="{{ today }}" min="{{ today }}" onchange="actualizarMinDevolucion()"></div>
+        <div class="campo"><label>Fecha de Devolución *</label><input type="date" name="fecha_devolucion" id="input-fecha-devolucion" min="{{ today }}" required></div>
+      </div>
+      <div class="campo"><label>Observaciones</label><textarea name="observaciones" rows="3"></textarea></div>
+      <div class="acciones-modal">
+        <button type="button" class="btn btn-outline" onclick="cerrarModal('modal-nuevo-prestamo')">Cancelar</button>
+        <button type="submit" class="btn btn-azul">Registrar Préstamo</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if has_permission('multas', 'editor') %}
+<div class="overlay-modal" id="modal-multar-prestamo">
+  <div class="modal">
+    <div class="cabecera-modal">
+      <h2>Multar préstamo</h2>
+      <button class="cerrar" onclick="cerrarModal('modal-multar-prestamo')">{{ icono('cerrar') }}</button>
+    </div>
+    <form method="POST" action="{{ url_for('fines.activate_fine') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="origen" value="prestamos">
+      <input type="hidden" name="prestamo_id" id="multa-prestamo-id">
+      <p class="subtexto" id="multa-resumen"></p>
+      <div class="campo">
+        <label>Tipo de infracción *</label>
+        <select name="tipo_infraccion" id="multa-tipo" required onchange="actualizarMulta()">
+          <option value="Préstamo vencido">Préstamo vencido</option>
+          <option value="Ejemplar perdido">Ejemplar perdido</option>
+          <option value="Ejemplar dañado">Ejemplar dañado</option>
+        </select>
+      </div>
+      <div class="campo">
+        <label>Descripción de la infracción</label>
+        <textarea name="descripcion" rows="2"></textarea>
+      </div>
+      <div class="reglas-multas" style="margin:0 0 14px;padding:10px 14px;" id="multa-info"></div>
+      <div class="campo" id="multa-campo-fecha" style="display:none;">
+        <label>Fecha de la infracción *</label>
+        <input type="date" name="fecha_inicio" id="multa-fecha" value="{{ today }}" max="{{ today }}">
+      </div>
+      <div class="campo">
+        <label>Notas</label>
+        <textarea name="notas" rows="2"></textarea>
+      </div>
+      <div class="acciones-modal">
+        <button type="button" class="btn btn-outline" onclick="cerrarModal('modal-multar-prestamo')">Cancelar</button>
+        <button type="submit" class="btn btn-azul">Activar multa</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<div id="prestamos-config" hidden data-tarifa-mora="{{ config.DAILY_LATE_FEE }}" data-hoy="{{ today }}"></div>
+<div id="prestamos-data" hidden data-libros='{{ books|tojson }}' data-miembros='{{ members|tojson }}'></div>
+<script>
+const configPrestamos = document.getElementById('prestamos-config');
+const datosPrestamos = document.getElementById('prestamos-data');
+const TARIFA_MORA = Number(configPrestamos.dataset.tarifaMora);
+const HOY = configPrestamos.dataset.hoy;
+const LIBROS_DISPONIBLES = JSON.parse(datosPrestamos.dataset.libros);
+const MIEMBROS_DISPONIBLES = JSON.parse(datosPrestamos.dataset.miembros);
+
+// ---- Gestionar: muestra u oculta Devolver / Multar de esa fila ----
+function alternarGestion(boton) {
+  const panel = document.getElementById(boton.getAttribute('aria-controls'));
+  const abrir = panel.hidden;
+  panel.hidden = !abrir;
+  boton.setAttribute('aria-expanded', String(abrir));
+}
+
+// ---- Multar desde la tabla ----
+function abrirMulta(boton) {
+  const d = boton.dataset;
+  const vencido = d.vencido === '1';
+  const modal = document.getElementById('modal-multar-prestamo');
+
+  document.getElementById('multa-prestamo-id').value = d.prestamo;
+  document.getElementById('multa-resumen').textContent = d.libro + ' — ' + d.miembro;
+  modal.dataset.vencimiento = d.vencimiento;
+
+  // La mora solo aplica si el préstamo ya venció; si no, se parte de "perdido".
+  const tipo = document.getElementById('multa-tipo');
+  tipo.querySelector('option[value="Préstamo vencido"]').disabled = !vencido;
+  tipo.value = vencido ? 'Préstamo vencido' : 'Ejemplar perdido';
+
+  actualizarMulta();
+  abrirModal('modal-multar-prestamo');
+}
+
+function actualizarMulta() {
+  const modal = document.getElementById('modal-multar-prestamo');
+  const esMora = document.getElementById('multa-tipo').value === 'Préstamo vencido';
+  const info = document.getElementById('multa-info');
+  const campoFecha = document.getElementById('multa-campo-fecha');
+  const inputFecha = document.getElementById('multa-fecha');
+
+  campoFecha.style.display = esMora ? 'none' : '';
+  inputFecha.required = !esMora;
+
+  if (esMora) {
+    const msDia = 86400000;
+    const dias = Math.max(Math.round((new Date(HOY) - new Date(modal.dataset.vencimiento)) / msDia), 1);
+    info.textContent = dias + ' día(s) de mora. Monto actual: $' + (dias * TARIFA_MORA).toLocaleString('es-CO')
+      + ' COP; sigue subiendo cada día mientras la multa esté activa.';
+  } else {
+    info.textContent = 'Cobro único de $' + TARIFA_MORA.toLocaleString('es-CO') + ' COP.';
+  }
+}
+
+
+// Los ISBN y los documentos se comparan sin guiones, puntos ni espacios.
+function compactar(texto) {
+  return (texto || '').toLowerCase().replace(/[\s.\-]/g, '');
+}
+
+// Con catálogos de miles de libros pintar todo congelaría el navegador.
+const LIMITE_RESULTADOS = 50;
+
+// Cada buscador agrupa su input visible, el id oculto que se envía, el
+// contenedor y la lista de resultados.
+function crearBuscador(prefijo) {
+  return {
+    texto: document.getElementById('buscar-' + prefijo),
+    id: document.getElementById(prefijo + '_id'),
+    caja: document.getElementById('selector-' + prefijo),
+    lista: document.getElementById('resultados-' + prefijo),
+  };
+}
+
+const buscadorLibro = crearBuscador('libro');
+const buscadorMiembro = crearBuscador('miembro');
+
+function resetBuscador(b) {
+  b.texto.value = '';
+  b.id.value = '';
+  b.lista.innerHTML = '';
+  b.caja.classList.remove('abierto');
+}
+
+function seleccionar(b, id, etiqueta) {
+  b.texto.value = etiqueta;
+  b.id.value = id;
+  b.caja.classList.remove('abierto');
+}
+
+function mostrarResultados(b, items, vacio) {
+  b.lista.innerHTML = '';
+  if (!items.length) {
+    b.lista.innerHTML = '<div class="sin-resultados">' + vacio + '</div>';
+  }
+  items.forEach(item => b.lista.appendChild(item));
+  b.caja.classList.add('abierto');
+}
+
+function filtrarLibros(texto) {
+  buscadorLibro.id.value = '';
+  buscadorLibro.texto.setCustomValidity('');
+
+  const termino = (texto || '').trim().toLowerCase();
+  const compacto = compactar(texto);
+  const todas = LIBROS_DISPONIBLES.filter(l =>
+    l.titulo.toLowerCase().includes(termino) || l.autor.toLowerCase().includes(termino)
+    || (compacto && compactar(l.isbn).includes(compacto)));
+
+  const filas = todas.slice(0, LIMITE_RESULTADOS).map(l => {
+    const fila = document.createElement('div');
+    fila.className = 'resultado-item';
+
+    // textContent y no innerHTML: un título con < o & no debe romper la página.
+    const nombre = document.createElement('span');
+    const titulo = document.createElement('strong');
+    titulo.textContent = l.titulo;
+    nombre.appendChild(titulo);
+    if (l.autor) nombre.appendChild(document.createTextNode(' - ' + l.autor));
+    if (l.isbn) nombre.appendChild(document.createTextNode(' · ISBN ' + l.isbn));
+
+    const disp = document.createElement('span');
+    disp.className = 'disp';
+    disp.textContent = l.disponibles + ' disp.';
+
+    fila.append(nombre, disp);
+    fila.addEventListener('click', () =>
+      seleccionar(buscadorLibro, l.id, l.autor ? l.titulo + ' - ' + l.autor : l.titulo));
+    return fila;
+  });
+
+  if (todas.length > LIMITE_RESULTADOS) {
+    const aviso = document.createElement('div');
+    aviso.className = 'sin-resultados';
+    aviso.textContent = 'Mostrando ' + LIMITE_RESULTADOS + ' de ' + todas.length + ' — escribe más para afinar.';
+    filas.push(aviso);
+  }
+  mostrarResultados(buscadorLibro, filas, 'No se encontraron libros disponibles.');
+}
+
+function filtrarMiembros(texto) {
+  buscadorMiembro.id.value = '';
+  buscadorMiembro.texto.setCustomValidity('');
+
+  const termino = (texto || '').trim().toLowerCase();
+  const compacto = compactar(texto);
+  const coincidentes = MIEMBROS_DISPONIBLES
+    .filter(m => m.nombre_completo.toLowerCase().includes(termino)
+      || (compacto && compactar(m.documento_id).includes(compacto)));
+  const filas = coincidentes.slice(0, LIMITE_RESULTADOS).map(m => {
+    const fila = document.createElement('div');
+    fila.className = 'resultado-item';
+    const nombre = document.createElement('span');
+    nombre.textContent = m.documento_id ? m.nombre_completo + ' · ID ' + m.documento_id : m.nombre_completo;
+    fila.appendChild(nombre);
+    fila.addEventListener('click', () => seleccionar(buscadorMiembro, m.id, m.nombre_completo));
+    return fila;
+  });
+  if (coincidentes.length > LIMITE_RESULTADOS) {
+    const aviso = document.createElement('div');
+    aviso.className = 'sin-resultados';
+    aviso.textContent = 'Mostrando ' + LIMITE_RESULTADOS + ' de ' + coincidentes.length + ' — escribe más para afinar.';
+    filas.push(aviso);
+  }
+  mostrarResultados(buscadorMiembro, filas, 'No se encontraron miembros.');
+}
+
+// La fecha de devolución no puede ser anterior a la del préstamo.
+function actualizarMinDevolucion() {
+  const inicio = document.getElementById('input-fecha-prestamo').value;
+  const fin = document.getElementById('input-fecha-devolucion');
+  if (!inicio) return;
+  fin.min = inicio;
+  if (fin.value && fin.value < inicio) fin.value = inicio;
+}
+
+// Al abrir o cerrar "Nuevo préstamo" los buscadores arrancan limpios.
+const _abrirModal = abrirModal;
+const _cerrarModal = cerrarModal;
+abrirModal = function (id) {
+  _abrirModal(id);
+  if (id === 'modal-nuevo-prestamo') { resetBuscador(buscadorLibro); resetBuscador(buscadorMiembro); }
+};
+cerrarModal = function (id) {
+  _cerrarModal(id);
+  if (id === 'modal-nuevo-prestamo') { resetBuscador(buscadorLibro); resetBuscador(buscadorMiembro); }
+};
+
+// Clic fuera de un buscador: se cierra su lista.
+document.addEventListener('click', function (evento) {
+  [buscadorLibro, buscadorMiembro].forEach(b => {
+    if (b.caja && !b.caja.contains(evento.target)) b.caja.classList.remove('abierto');
+  });
+});
+
+// No se deja enviar sin haber elegido libro y miembro de la lista.
+function validarNuevoPrestamo(evento) {
+  const faltantes = [
+    [buscadorLibro, 'Selecciona un libro de la lista.'],
+    [buscadorMiembro, 'Selecciona un miembro de la lista.'],
+  ].filter(([b]) => !b.id.value);
+
+  faltantes.forEach(([b, mensaje]) => b.texto.setCustomValidity(mensaje));
+  if (faltantes.length) {
+    evento.preventDefault();
+    const [primero] = faltantes[0];
+    primero.caja.classList.add('abierto');
+    primero.texto.focus();
+    primero.texto.reportValidity();
+  }
+  [buscadorLibro, buscadorMiembro].forEach(b => b.texto.setCustomValidity(''));
+  return faltantes.length === 0;
+}
+</script>
+{% endblock %}

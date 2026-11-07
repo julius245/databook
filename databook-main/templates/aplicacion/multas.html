@@ -1,0 +1,214 @@
+{% extends "aplicacion/layout.html" %}
+{% from 'iconos.html' import icono %}
+{% block titulo %}Multas — DataBook{% endblock %}
+
+{% block contenido %}
+<div class="app-header-row">
+  <div>
+    <h1>Multas</h1>
+    <p>{{ total_active }} multa(s) activa(s)</p>
+  </div>
+  {% if has_permission('multas', 'editor') %}
+  <button class="btn btn-azul" onclick="abrirModal('modal-activar-multa')">+ Activar Multa</button>
+  {% endif %}
+</div>
+
+<div class="reglas-multas">
+  <h4>{{ icono('alerta') }} Reglas del sistema de multas</h4>
+  <ul>
+    <li>La multa genera ${{ "{:,.0f}".format(daily_fee) }} COP por cada día de mora de cada documento en espera.</li>
+    <li>El usuario queda bloqueado para sacar material bibliográfico en préstamo hasta devolver los ejemplares y cancelar la multa.</li>
+    <li>La multa se activa cuando un préstamo se vence, se pierde un ejemplar o se devuelve dañado.</li>
+    <li>El bloqueo se levanta automáticamente al devolver los ejemplares y cancelar el valor de la multa.</li>
+    <li>Se puede enviar una alerta por correo al miembro sobre los préstamos vencidos.</li>
+  </ul>
+</div>
+
+<form method="GET" class="barra-filtros">
+  <div class="buscar">
+    <span class="icono-buscar">{{ icono('buscar') }}</span>
+    <input type="text" name="q" value="{{ search_term }}" placeholder="Buscar por miembro, ID (documento), libro o ISBN...">
+  </div>
+  <select name="estado" onchange="this.form.submit()">
+    {% for opcion in ['Todas', 'Activa', 'Pagada', 'Cancelada'] %}
+      <option value="{{ opcion }}" {{ 'selected' if filter_value == opcion }}>{{ opcion }}{{ 's' if opcion == 'Todas' }}</option>
+    {% endfor %}
+  </select>
+</form>
+
+<div class="tabla-wrap">
+  <table class="tabla-datos">
+    <thead>
+      <tr>
+        <th>Miembro</th><th>Número de Identificación</th><th>Libro</th><th>ISBN</th><th>Infracción</th><th>Monto</th><th>Estado</th><th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in fines %}
+      <tr>
+        <td>{{ m.miembro_nombre }}</td>
+        <td>{{ m.documento_id }}</td>
+        <td>{{ m.libro_titulo }}</td>
+        <td class="subtexto">{{ m.isbn or '—' }}</td>
+        <td>
+          {{ m.tipo_infraccion }}
+          {% if m.descripcion %}<div class="subtexto">{{ m.descripcion }}</div>{% endif %}
+        </td>
+        <td>${{ "{:,.0f}".format(m.monto) }}</td>
+        <td>
+          {% if m.estado == 'Activa' %}
+            <span class="badge badge-rojo">Activa</span>
+          {% elif m.estado == 'Pagada' %}
+            <span class="badge badge-verde">Pagada</span>
+          {% else %}
+            <span class="badge badge-gris">Cancelada</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if m.estado == 'Activa' %}
+          <div class="acciones-tabla">
+            {% if has_permission('multas', 'editor') %}
+            <form method="POST" action="{{ url_for('fines.pay_fine', fine_id=m.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-outline btn-sm">{{ icono('verificado') }} Pagar</button>
+            </form>
+            {% endif %}
+            {% if has_permission('multas', 'control_total') %}
+            <form method="POST" action="{{ url_for('fines.cancel_fine', fine_id=m.id) }}" style="display:inline;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-outline btn-sm">{{ icono('bloqueado') }}</button>
+            </form>
+            {% endif %}
+          </div>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" class="vacio">No hay multas registradas.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block modales %}
+<div class="overlay-modal" id="modal-activar-multa">
+  <div class="modal">
+    <div class="cabecera-modal">
+      <h2>Activar Multa</h2>
+      <button class="cerrar" onclick="cerrarModal('modal-activar-multa')">{{ icono('cerrar') }}</button>
+    </div>
+    <form method="POST" action="{{ url_for('fines.activate_fine') }}" onsubmit="return validarActivarMulta()">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="campo">
+        <label>Préstamo asociado *</label>
+        <select name="prestamo_id" id="select-prestamo-multa" required onchange="actualizarInfoMora()">
+          <option value="">Seleccionar préstamo</option>
+          {% for p in overdue_loans %}
+            <option value="{{ p.id }}" data-vencimiento="{{ p.fecha_devolucion }}">{{ p.titulo }} — {{ p.nombre_completo }}</option>
+          {% endfor %}
+        </select>
+        {% if not overdue_loans %}
+        <div class="subtexto" style="margin-top:6px;">No hay préstamos vencidos sin multa activa en este momento.</div>
+        {% endif %}
+      </div>
+      <div class="campo">
+        <label>Tipo de infracción *</label>
+        <select name="tipo_infraccion" id="select-tipo-infraccion" required onchange="actualizarInfoMora()">
+          <option value="{{ late_return_infraction }}">Préstamo vencido</option>
+          <option value="Ejemplar perdido">Ejemplar perdido</option>
+          <option value="Ejemplar dañado">Ejemplar dañado</option>
+        </select>
+      </div>
+      <div class="campo">
+        <label>Descripción de la infracción</label>
+        <textarea name="descripcion" rows="2" placeholder="Describe la infracción cometida..."></textarea>
+      </div>
+
+      <div class="campo" id="campo-info-mora">
+        <div class="reglas-multas" style="margin:0;padding:10px 14px;">
+          <span id="texto-info-mora">Selecciona el préstamo para ver desde cuándo corre la mora.</span>
+        </div>
+      </div>
+
+      <div class="campo" id="campo-fecha-inicio" style="display:none;">
+        <label>Fecha de la infracción *</label>
+        <input type="date" name="fecha_inicio" id="input-fecha-inicio" value="{{ today }}">
+      </div>
+
+      <div class="reglas-multas" style="margin:0 0 14px;padding:10px 14px;">
+        Tarifa diaria: <b>${{ "{:,.0f}".format(daily_fee) }} COP</b> por día de mora
+      </div>
+      <div class="campo">
+        <label>Notas</label>
+        <textarea name="notas" rows="2"></textarea>
+      </div>
+      <div class="acciones-modal">
+        <button type="button" class="btn btn-outline" onclick="cerrarModal('modal-activar-multa')">Cancelar</button>
+        <button type="submit" class="btn btn-azul">Activar Multa</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<div id="multas-config" hidden data-tarifa-diaria="{{ daily_fee }}" data-hoy="{{ today }}" data-infraccion="{{ late_return_infraction }}"></div>
+<script>
+const configMultas = document.getElementById('multas-config');
+const TARIFA_DIARIA_MORA = Number(configMultas.dataset.tarifaDiaria);
+const INFRACCION_POR_MORA = configMultas.dataset.infraccion;
+const HOY_ISO = configMultas.dataset.hoy;
+
+function abrirModal(id) {
+  document.getElementById(id).classList.add('abierto');
+  if (id === 'modal-activar-multa') { actualizarInfoMora(); }
+}
+function cerrarModal(id) { document.getElementById(id).classList.remove('abierto'); }
+
+function diasEntre(fechaIso, hoyIso) {
+  const inicio = new Date(fechaIso + 'T00:00:00');
+  const hoyF = new Date(hoyIso + 'T00:00:00');
+  return Math.max(Math.round((hoyF - inicio) / 86400000), 0);
+}
+
+function actualizarInfoMora() {
+  const tipo = document.getElementById('select-tipo-infraccion').value;
+  const selectPrestamo = document.getElementById('select-prestamo-multa');
+  const opcion = selectPrestamo.options[selectPrestamo.selectedIndex];
+  const campoInfoMora = document.getElementById('campo-info-mora');
+  const campoFechaInicio = document.getElementById('campo-fecha-inicio');
+  const textoInfoMora = document.getElementById('texto-info-mora');
+
+  if (tipo === INFRACCION_POR_MORA) {
+    campoInfoMora.style.display = '';
+    campoFechaInicio.style.display = 'none';
+    document.getElementById('input-fecha-inicio').removeAttribute('required');
+
+    const vencimiento = opcion ? opcion.getAttribute('data-vencimiento') : null;
+    if (vencimiento) {
+      const dias = Math.max(diasEntre(vencimiento, HOY_ISO), 1);
+      const monto = dias * TARIFA_DIARIA_MORA;
+      textoInfoMora.textContent =
+        `Vencido desde el ${vencimiento} — ${dias} día(s) de mora — Monto actual: $${monto.toLocaleString('es-CO')} COP. `
+        + 'La mora se calcula automáticamente desde la fecha real de vencimiento y sigue creciendo cada día mientras la multa esté activa.';
+    } else {
+      textoInfoMora.textContent = 'Selecciona el préstamo para ver desde cuándo corre la mora.';
+    }
+  } else {
+    campoInfoMora.style.display = 'none';
+    campoFechaInicio.style.display = '';
+    document.getElementById('input-fecha-inicio').setAttribute('required', 'required');
+  }
+}
+
+function validarActivarMulta() {
+  const tipo = document.getElementById('select-tipo-infraccion').value;
+  if (tipo === INFRACCION_POR_MORA && !document.getElementById('select-prestamo-multa').value) {
+    alert('Selecciona el préstamo vencido asociado a la multa.');
+    return false;
+  }
+  return true;
+}
+</script>
+{% endblock %}

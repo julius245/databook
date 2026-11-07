@@ -1,0 +1,80 @@
+{% extends "aplicacion/layout.html" %}
+{% from 'iconos.html' import icono %}
+{% block titulo %}Mi Perfil — DataBook{% endblock %}
+
+{% block contenido %}
+{% set etiquetas_rol = {'staff': 'Staff (encargado de biblioteca)', 'bibliotecario': 'Bibliotecario', 'superadmin': 'Superadmin'} %}
+{% set etiquetas_modulo = {'catalogo': 'Catálogo', 'miembros': 'Miembros', 'prestamos': 'Préstamos', 'multas': 'Multas'} %}
+{% set etiquetas_nivel = {'sin_acceso': 'Sin Acceso', 'lector': 'Lector', 'editor': 'Editor', 'control_total': 'Control Total'} %}
+
+<!-- Encabezado "congelado": se queda fijo arriba mientras el resto hace scroll. -->
+<div class="perfil-header-fijo">
+  <div class="perfil-header-info">
+    <div class="perfil-header-avatar">{{ (full_name or '?')[:1]|upper }}</div>
+    <div>
+      <h1>{{ full_name }}</h1>
+      <p>
+        {{ etiquetas_rol.get(user.rol, user.rol) }}
+        <span class="badge {{ 'badge-verde' if user.estado == 'Activo' else 'badge-rojo' }}" style="margin-left:8px;">{{ user.estado }}</span>
+      </p>
+    </div>
+  </div>
+  <a href="{{ url_for('auth.settings') }}" class="btn btn-azul">{{ icono('engranaje') }} Ajustes</a>
+</div>
+
+<div class="perfil-detalle">
+  <div class="tarjeta-perfil">
+    <h3 class="subtitulo-form" style="margin-top:0;">Información de la cuenta</h3>
+
+    <p><strong>Nombre:</strong> {{ full_name }}</p>
+    {% if library %}
+    <p><strong>Biblioteca:</strong> {{ library }}
+      {% if user.rol == 'bibliotecario' %}<span class="subtexto">(staff: {{ staff_email }})</span>{% endif %}
+    </p>
+    {% endif %}
+    <p><strong>Correo:</strong> {{ user.email }}</p>
+    {% if user.tipo_documento or user.numero_documento %}
+    <p><strong>Documento:</strong> {{ user.tipo_documento or '—' }} {{ user.numero_documento or '' }}</p>
+    {% endif %}
+    {% if user.telefono %}
+    <p><strong>Teléfono:</strong> {{ user.telefono }}</p>
+    {% endif %}
+    {% if user.rol == 'bibliotecario' and user.rol_equipo %}
+    <p><strong>Rol en el equipo:</strong> {{ user.rol_equipo.replace('_', ' ')|capitalize }}</p>
+    {% endif %}
+
+    {% if user.rol == 'bibliotecario' %}
+    <p><strong>Permisos por módulo:</strong></p>
+    <p>
+      {% for clave, etiqueta in etiquetas_modulo.items() %}
+      {% set nivel = permissions.get(clave, 'sin_acceso') %}
+      <span class="badge {{ 'badge-rojo' if nivel == 'sin_acceso' else 'badge-verde' }}" style="margin:1px;">
+        {{ etiqueta }}: {{ etiquetas_nivel.get(nivel, nivel) }}
+      </span>
+      {% endfor %}
+    </p>
+    <p style="font-size:0.85rem;color:var(--texto-muted);">
+      Tus permisos los administra el Staff de tu biblioteca desde "Mi Equipo".
+    </p>
+    {% endif %}
+
+    <hr>
+    <p><strong>Cuenta creada:</strong> {{ (user.fecha_registro or '')[:10] or '—' }}</p>
+    <p><strong>Contraseña:</strong>
+      {% if user.password_temporal %}
+        <span class="badge badge-rojo">Temporal — pendiente de cambiar</span>
+      {% else %}
+        <span class="badge badge-verde">Actualizada</span>
+      {% endif %}
+      {% if user.password_actualizada_en %}
+        <br><small>Último cambio: {{ user.password_actualizada_en[:10] }}</small>
+      {% endif %}
+    </p>
+    {% if user.password_temporal %}
+    <p style="font-size:0.85rem;color:var(--texto-muted);">
+      Todavía usas una contraseña temporal. Cámbiala desde <a href="{{ url_for('auth.settings') }}"><strong>Ajustes → Cambiar mi contraseña</strong></a>.
+    </p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,179 @@
+{% extends "aplicacion/layout.html" %}
+{% block titulo %}Reportes — DataBook{% endblock %}
+
+{% block contenido %}
+<div class="app-header-row">
+  <div>
+    <h1>Reportes y analíticas</h1>
+    <p>Resumen ejecutivo de catálogo, miembros, préstamos y multas.</p>
+  </div>
+</div>
+
+<div class="reportes-shell">
+  <div class="reportes-toolbar">
+    <form method="GET" class="reportes-filtros">
+      <select name="periodo" aria-label="Seleccionar rango" onchange="this.form.submit()">
+        <option value="mes" {{ 'selected' if period == 'mes' }}>Mensual (mes actual)</option>
+        <option value="trimestre" {{ 'selected' if period == 'trimestre' }}>Trimestral (últimos 3 meses)</option>
+        <option value="anio" {{ 'selected' if period == 'anio' }}>Anual (año actual)</option>
+      </select>
+      <button type="submit" class="btn btn-outline btn-sm">Aplicar filtro</button>
+    </form>
+  </div>
+
+  <div class="reportes-metrics">
+    {% for item in reports.kpis %}
+    <div class="metric-card">
+      <span class="eyebrow">{{ item.label }}</span>
+      <strong>{{ item.valor }}</strong>
+      <span>{{ item.meta }}</span>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="report-grid">
+    <div class="report-panel">
+      <h3>Inventario del catálogo</h3>
+      {% set total_inv = reports.inventario.total_ejemplares %}
+      {% if total_inv > 0 %}
+      <div class="report-bars">
+        <div class="bar-item">
+          <span>Disponibles</span>
+          <div class="bar-track"><span style="width: {{ ((reports.inventario.disponibles / total_inv) * 100) | round(0) }}%;"></span></div>
+          <strong>{{ reports.inventario.disponibles }}</strong>
+        </div>
+        <div class="bar-item">
+          <span>Prestados actualmente</span>
+          <div class="bar-track"><span style="width: {{ ((reports.inventario.prestados / total_inv) * 100) | round(0) }}%;"></span></div>
+          <strong>{{ reports.inventario.prestados }}</strong>
+        </div>
+      </div>
+      {% else %}
+      <p class="vacio">Aún no hay ejemplares registrados en el catálogo.</p>
+      {% endif %}
+    </div>
+
+    <div class="report-panel">
+      <h3>Top libros más prestados</h3>
+      {% if reports.libros_top %}
+      <table class="report-table">
+        <thead>
+          <tr><th>Libro</th><th>Préstamos</th></tr>
+        </thead>
+        <tbody>
+          {% for libro in reports.libros_top %}
+          <tr>
+            <td>{{ libro.titulo }}</td>
+            <td>{{ libro.prestamos }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="vacio">No hay préstamos registrados en este periodo.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="report-grid" style="margin-top:20px;">
+    <div class="report-panel">
+      <h3>Miembros y usuarios</h3>
+      <table class="report-table">
+        <thead>
+          <tr><th>Segmento</th><th>Cantidad</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Adultos</td><td>{{ reports.usuarios.adultos }}</td></tr>
+          <tr><td>Menores (Tarjeta de Identidad)</td><td>{{ reports.usuarios.menores }}</td></tr>
+          {% if reports.usuarios.activos %}
+          <tr><td>Miembro más activo</td><td>{{ reports.usuarios.activos[0].nombre }} ({{ reports.usuarios.activos[0].prestamos }})</td></tr>
+          {% else %}
+          <tr><td>Miembro más activo</td><td>—</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="report-panel">
+      <h3>Tipos de identificación</h3>
+      {% if reports.usuarios.tipo_documento %}
+      <table class="report-table">
+        <thead>
+          <tr><th>Tipo</th><th>%</th></tr>
+        </thead>
+        <tbody>
+          {% for tipo in reports.usuarios.tipo_documento %}
+          <tr>
+            <td>{{ tipo.nombre }}</td>
+            <td>{{ tipo.valor }}%</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="vacio">Aún no hay miembros registrados.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="report-grid" style="margin-top:20px;">
+    <div class="report-panel">
+      <h3>Préstamos y devoluciones</h3>
+      <table class="report-table">
+        <thead>
+          <tr><th>Indicador</th><th>Valor</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Préstamos realizados</td><td>{{ reports.prestamos.total }}</td></tr>
+          <tr><td>Devueltos a tiempo</td><td>{{ reports.prestamos.tiempo }}</td></tr>
+          <tr><td>Devueltos con retraso</td><td>{{ reports.prestamos.retrasadas }}</td></tr>
+          <tr>
+            <td>Promedio de días por categoría</td>
+            <td>
+              {% if reports.prestamos.duracion %}
+                {{ reports.prestamos.duracion[0].categoria }}: {{ reports.prestamos.duracion[0].dias }} días
+              {% else %}—{% endif %}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="report-panel">
+      <h3>Multas y recaudos</h3>
+      {% if reports.multas.causales %}
+      <table class="report-table">
+        <thead>
+          <tr><th>Causal</th><th>%</th></tr>
+        </thead>
+        <tbody>
+          {% for multa in reports.multas.causales %}
+          <tr>
+            <td>{{ multa.causal }}</td>
+            <td>{{ multa.valor }}%</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="vacio">No se generaron multas en este periodo.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="report-panel" style="margin-top:20px;">
+    <h3>Resumen ejecutivo</h3>
+    <table class="report-table">
+      <thead>
+        <tr><th>Indicador</th><th>Resultado</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Stock total de libros</td><td>{{ reports.resumen.stock }}</td></tr>
+        <tr><td>Miembros registrados</td><td>{{ reports.resumen.miembros }}</td></tr>
+        <tr><td>Tasa de devoluciones a tiempo</td><td>{{ reports.resumen.tasa }}</td></tr>
+        <tr><td>Mora por cobrar</td><td>{{ reports.resumen.mora }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

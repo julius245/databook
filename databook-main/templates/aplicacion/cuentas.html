@@ -1,0 +1,293 @@
+{% extends "aplicacion/layout.html" %}
+{% from 'iconos.html' import icono %}
+{% block titulo %}Miembros — DataBook{% endblock %}
+
+{% block contenido %}
+<div class="app-header-row">
+  <div>
+    <h1>Miembros</h1>
+    <p>{{ members|length }} miembro(s) registrado(s)</p>
+  </div>
+  <div style="display:flex; gap:10px;">
+    {% if has_permission('miembros', 'editor') %}
+    <button class="btn btn-outline" onclick="abrirModal('modal-importar-miembros')">Importar Excel</button>
+    <button class="btn btn-azul" onclick="abrirModal('modal-nuevo-miembro')">+ Nuevo Miembro</button>
+    {% else %}
+    <a class="btn btn-outline" href="{{ url_for('members.export_members') }}">Descargar Excel</a>
+    {% endif %}
+  </div>
+</div>
+
+<form method="GET" class="barra-filtros">
+  <div class="buscar">
+    <span class="icono-buscar">{{ icono('buscar') }}</span>
+    <input type="text" name="q" value="{{ search_term }}" placeholder="Buscar por nombre, ID (documento) o email...">
+  </div>
+</form>
+
+<div class="tabla-wrap">
+  <table class="tabla-datos">
+    <thead>
+      <tr>
+        <th>Nombre</th><th>Número de Identificación</th><th>Tipo</th><th>Contacto</th><th>Estado</th><th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in members %}
+      <tr>
+        <td>
+          {{ m.nombre_completo }}
+          {% if m.tipo == 'TARJETA DE IDENTIDAD' and (m.tutor_nombre or m.tutor_apellido) %}
+          <div class="subtexto subtexto-tutor">{{ icono('persona', clase='icono icono-sm') }} Tutor: {{ m.tutor_nombre }} {{ m.tutor_apellido }}{% if m.tutor_documento %} · CC {{ m.tutor_documento }}{% endif %}</div>
+          {% endif %}
+        </td>
+        <td>{{ m.documento_id }}</td>
+        <td><span class="badge badge-azul">{{ m.tipo }}</span></td>
+        <td>
+          <div>{{ icono('correo') }} {{ m.email or '—' }}</div>
+          <div class="subtexto">{{ icono('telefono') }} {{ m.telefono or '—' }}</div>
+        </td>
+        <td>
+          <span class="badge {{ 'badge-verde' if m.estado == 'Activo' else 'badge-naranja' }}">{{ m.estado }}</span>
+        </td>
+        <td>
+          <div class="acciones-tabla">
+            {% if has_permission('miembros', 'editor') %}
+            <a class="icono-editar" title="Editar"
+              data-id="{{ m.id }}"
+              data-nombre="{{ m.nombre_completo|e }}"
+              data-primer-nombre="{{ (m.primer_nombre or '')|e }}"
+              data-segundo-nombre="{{ (m.segundo_nombre or '')|e }}"
+              data-primer-apellido="{{ (m.primer_apellido or '')|e }}"
+              data-segundo-apellido="{{ (m.segundo_apellido or '')|e }}"
+              data-documento="{{ m.documento_id|e }}"
+              data-tipo="{{ m.tipo|e }}"
+              data-email="{{ (m.email or '')|e }}"
+              data-telefono="{{ (m.telefono or '')|e }}"
+              data-direccion="{{ (m.direccion or '')|e }}"
+              data-notas="{{ (m.notas or '')|e }}"
+              data-tutor-nombre="{{ (m.tutor_nombre or '')|e }}"
+              data-tutor-apellido="{{ (m.tutor_apellido or '')|e }}"
+              data-tutor-documento="{{ (m.tutor_documento or '')|e }}"
+              onclick="editarMiembro(this)">{{ icono('lapiz') }}</a>
+            {% endif %}
+            {% if has_permission('miembros', 'control_total') %}
+            <a class="icono-eliminar" title="Eliminar"
+              data-id="{{ m.id }}"
+              data-nombre="{{ m.nombre_completo|e }}"
+              onclick="confirmarEliminarMiembro(this)">{{ icono('papelera') }}</a>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="vacio">No hay miembros registrados todavía.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block modales %}
+<!-- Modal: Importar / exportar miembros en Excel -->
+<div class="overlay-modal" id="modal-importar-miembros">
+  <div class="modal">
+    <div class="cabecera-modal">
+      <h2>Importar miembros desde Excel</h2>
+      <button class="cerrar" onclick="cerrarModal('modal-importar-miembros')">{{ icono('cerrar') }}</button>
+    </div>
+    <form method="POST" action="{{ url_for('members.import_members') }}" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="campo">
+        <label>Archivo Excel (.xlsx) *</label>
+        <input type="file" name="archivo_excel" accept=".xlsx" required>
+        <div class="ayuda-campo">
+          La primera fila debe tener los encabezados. Columnas reconocidas: Primer Nombre,
+          Segundo Nombre, Primer Apellido, Segundo Apellido, Número de Identificación, Tipo,
+          Email, Teléfono, Dirección, Notas, Estado, Nombre del Tutor, Apellido del Tutor y
+          Cédula del Tutor.
+        </div>
+      </div>
+      <div class="ayuda-campo">
+        Son obligatorios el primer nombre, el primer apellido, el número de identificación
+        (8 a 10 dígitos) y la dirección. Si el tipo es TARJETA DE IDENTIDAD, también se piden
+        los datos del tutor. Las filas con datos inválidos o con un documento ya registrado se
+        omiten y te avisamos cuáles fueron.
+      </div>
+
+      <div class="bloque-descargas">
+        <div class="titulo-descargas">Descargar en Excel</div>
+        <p class="ayuda-campo">
+          Baja todos los miembros en un archivo .xlsx, o una plantilla vacía que ya pide los
+          datos exactos que necesita el sistema (incluye una hoja con instrucciones). Llénala,
+          guárdala y súbela aquí mismo.
+        </p>
+        <div class="acciones-descargas">
+          <a class="btn btn-outline" href="{{ url_for('members.export_members') }}">
+            {{ icono('personas') }} Descargar todos los datos ({{ members|length }})
+          </a>
+          <a class="btn btn-outline" href="{{ url_for('members.members_template') }}">
+            {{ icono('etiqueta') }} Descargar plantilla vacía
+          </a>
+        </div>
+      </div>
+
+      <div class="acciones-modal">
+        <button type="button" class="btn btn-outline" onclick="cerrarModal('modal-importar-miembros')">Cancelar</button>
+        <button type="submit" class="btn btn-azul">Importar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="overlay-modal" id="modal-nuevo-miembro">
+  <div class="modal">
+    <div class="cabecera-modal">
+      <h2>Nuevo Miembro</h2>
+      <button class="cerrar" onclick="cerrarModal('modal-nuevo-miembro')">{{ icono('cerrar') }}</button>
+    </div>
+    <form method="POST" action="{{ url_for('members.new_member') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="fila-2">
+        <div class="campo"><label>Primer Nombre *</label><input type="text" name="primer_nombre" required></div>
+        <div class="campo"><label>Segundo Nombre</label><input type="text" name="segundo_nombre"></div>
+      </div>
+      <div class="fila-2">
+        <div class="campo"><label>Primer Apellido *</label><input type="text" name="primer_apellido" required></div>
+        <div class="campo"><label>Segundo Apellido</label><input type="text" name="segundo_apellido"></div>
+      </div>
+      <div class="fila-2">
+        <div class="campo"><label>Número de Identificación *</label><input type="text" name="documento_id" inputmode="numeric" pattern="[0-9]{8,10}" minlength="8" maxlength="10" oninput="this.value = this.value.replace(/\D/g, '').slice(0, 10)" title="El documento debe tener entre 8 y 10 dígitos." required></div>
+        <div class="campo">
+          <label>Tipo</label>
+          <select name="tipo" onchange="toggleTutor(this, 'tutor-nuevo')">{% for t in kinds %}<option>{{ t }}</option>{% endfor %}</select>
+        </div>
+      </div>
+      <div class="campo-tutor" id="tutor-nuevo" style="display:none">
+        <div class="fila-2">
+          <div class="campo"><label>Nombre del Tutor</label><input type="text" name="tutor_nombre"></div>
+          <div class="campo"><label>Apellido del Tutor</label><input type="text" name="tutor_apellido"></div>
+        </div>
+        <div class="campo"><label>Cédula del Tutor</label><input type="text" name="tutor_documento" inputmode="numeric" pattern="[0-9]{8,10}" minlength="8" maxlength="10" oninput="this.value = this.value.replace(/\D/g, '').slice(0, 10)" title="La cédula debe tener entre 8 y 10 dígitos."></div>
+      </div>
+      <div class="fila-2">
+        <div class="campo"><label>Email</label><input type="email" name="email"></div>
+        <div class="campo"><label>Teléfono</label><input type="text" name="telefono" inputmode="numeric" pattern="[0-9]{1,10}" maxlength="10" oninput="this.value = this.value.replace(/\D/g, '').slice(0, 10)" title="El teléfono debe tener máximo 10 dígitos."></div>
+      </div>
+      <div class="campo"><label>Dirección *</label><input type="text" name="direccion" required></div>
+      <div class="campo"><label>Notas</label><textarea name="notas" rows="3"></textarea></div>
+      <div class="acciones-modal">
+        <button type="button" class="btn btn-outline" onclick="cerrarModal('modal-nuevo-miembro')">Cancelar</button>
+        <button type="submit" class="btn btn-azul">Registrar Miembro</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="overlay-modal" id="modal-editar-miembro">
+  <div class="modal">
+    <div class="cabecera-modal">
+      <h2>Editar Miembro</h2>
+      <button class="cerrar" onclick="cerrarModal('modal-editar-miembro')">{{ icono('cerrar') }}</button>
+    </div>
+    <form method="POST" id="form-editar-miembro">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="fila-2">
+        <div class="campo"><label>Primer Nombre *</label><input type="text" name="primer_nombre" id="m-primer-nombre" required></div>
+        <div class="campo"><label>Segundo Nombre</label><input type="text" name="segundo_nombre" id="m-segundo-nombre"></div>
+      </div>
+      <div class="fila-2">
+        <div class="campo"><label>Primer Apellido *</label><input type="text" name="primer_apellido" id="m-primer-apellido" required></div>
+        <div class="campo"><label>Segundo Apellido</label><input type="text" name="segundo_apellido" id="m-segundo-apellido"></div>
+      </div>
+      <div class="fila-2">
+        <div class="campo"><label>Número de Identificación *</label><input type="text" name="documento_id" id="m-documento" inputmode="numeric" pattern="[0-9]{8,10}" minlength="8" maxlength="10" oninput="this.value = this.value.replace(/\D/g, '').slice(0, 10)" title="El documento debe tener entre 8 y 10 dígitos." required></div>
+        <div class="campo">
+          <label>Tipo</label>
+          <select name="tipo" id="m-tipo" onchange="toggleTutor(this, 'tutor-editar')">{% for t in kinds %}<option>{{ t }}</option>{% endfor %}</select>
+        </div>
+      </div>
+      <div class="campo-tutor" id="tutor-editar" style="display:none">
+        <div class="fila-2">
+          <div class="campo"><label>Nombre del Tutor</label><input type="text" name="tutor_nombre" id="m-tutor-nombre"></div>
+          <div class="campo"><label>Apellido del Tutor</label><input type="text" name="tutor_apellido" id="m-tutor-apellido"></div>
+        </div>
+        <div class="campo"><label>Cédula del Tutor</label><input type="text" name="tutor_documento" id="m-tutor-documento" inputmode="numeric" pattern="[0-9]{8,10}" minlength="8" maxlength="10" oninput="this.value = this.value.replace(/\D/g, '').slice(0, 10)" title="La cédula debe tener entre 8 y 10 dígitos."></div>
+      </div>
+      <div class="fila-2">
+        <div class="campo"><label>Email</label><input type="email" name="email" id="m-email"></div>
+        <div class="campo"><label>Teléfono</label><input type="text" name="telefono" id="m-telefono" inputmode="numeric" pattern="[0-9]{1,10}" maxlength="10" oninput="this.value = this.value.replace(/\D/g, '').slice(0, 10)" title="El teléfono debe tener máximo 10 dígitos."></div>
+      </div>
+      <div class="campo"><label>Dirección *</label><input type="text" name="direccion" id="m-direccion" required></div>
+      <div class="campo"><label>Notas</label><textarea name="notas" id="m-notas" rows="3"></textarea></div>
+      <div class="acciones-modal">
+        <button type="button" class="btn btn-outline" onclick="cerrarModal('modal-editar-miembro')">Cancelar</button>
+        <button type="submit" class="btn btn-azul">Guardar Cambios</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="overlay-modal" id="modal-eliminar-miembro">
+  <div class="modal modal-confirmacion">
+    <div class="cabecera-modal">
+      <h2>¿Eliminar miembro?</h2>
+      <button class="cerrar" onclick="cerrarModal('modal-eliminar-miembro')">{{ icono('cerrar') }}</button>
+    </div>
+    <p id="texto-eliminar-miembro">Se eliminará a este miembro permanentemente.</p>
+    <form method="POST" id="form-eliminar-miembro">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="acciones-modal">
+        <button type="button" class="btn btn-outline" onclick="cerrarModal('modal-eliminar-miembro')">Cancelar</button>
+        <button type="submit" class="btn btn-peligro">Eliminar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function abrirModal(id) { document.getElementById(id).classList.add('abierto'); }
+function cerrarModal(id) { document.getElementById(id).classList.remove('abierto'); }
+
+function toggleTutor(select, idBloque) {
+  const bloque = document.getElementById(idBloque);
+  const mostrar = select.value === 'TARJETA DE IDENTIDAD';
+  bloque.style.display = mostrar ? 'block' : 'none';
+  bloque.querySelectorAll('input').forEach(function (campo) {
+    if (campo.name === 'tutor_nombre' || campo.name === 'tutor_apellido' || campo.name === 'tutor_documento') {
+      campo.required = mostrar;
+      if (!mostrar) campo.value = '';
+    }
+  });
+}
+
+function editarMiembro(elemento) {
+  const datos = elemento.dataset;
+  document.getElementById('form-editar-miembro').action = "/miembros/editar/" + datos.id;
+  document.getElementById('m-primer-nombre').value = datos.primerNombre;
+  document.getElementById('m-segundo-nombre').value = datos.segundoNombre;
+  document.getElementById('m-primer-apellido').value = datos.primerApellido;
+  document.getElementById('m-segundo-apellido').value = datos.segundoApellido;
+  document.getElementById('m-documento').value = datos.documento;
+  document.getElementById('m-tipo').value = datos.tipo;
+  document.getElementById('m-email').value = datos.email;
+  document.getElementById('m-telefono').value = datos.telefono;
+  document.getElementById('m-direccion').value = datos.direccion;
+  document.getElementById('m-notas').value = datos.notas;
+  document.getElementById('m-tutor-nombre').value = datos.tutorNombre;
+  document.getElementById('m-tutor-apellido').value = datos.tutorApellido;
+  document.getElementById('m-tutor-documento').value = datos.tutorDocumento;
+  toggleTutor(document.getElementById('m-tipo'), 'tutor-editar');
+  abrirModal('modal-editar-miembro');
+}
+
+function confirmarEliminarMiembro(elemento) {
+  const datos = elemento.dataset;
+  document.getElementById('texto-eliminar-miembro').innerText = 'Se eliminará a "' + datos.nombre + '" permanentemente.';
+  document.getElementById('form-eliminar-miembro').action = "/miembros/eliminar/" + datos.id;
+  abrirModal('modal-eliminar-miembro');
+}
+</script>
+{% endblock %}
