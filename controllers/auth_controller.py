@@ -30,6 +30,7 @@ def login():
             session['usuario_nombre'] = user['nombre']
             session['rol'] = user.get('rol', 'usuario')
             session['modulos'] = (user.get('modulos_permitidos') or '').split(',')
+            session['tema'] = user.get('tema') or 'sistema'
             flash("Bienvenido al sistema", "success")
             return redirect(url_for('dashboard.index'))
         else:
@@ -161,6 +162,34 @@ def settings():
         )
     finally:
         conn.close()
+
+
+# Guarda el tema elegido en Ajustes > Apariencia (claro / oscuro / sistema)
+@auth_bp.route('/ajustes/tema', methods=['POST'])
+def save_theme():
+    user_id = session.get('user_id')
+    if not user_id:
+        return {'success': False, 'message': 'Sesión expirada'}, 401
+
+    datos = request.get_json(silent=True) or request.form
+    tema = (datos.get('tema') or '').strip()
+    if tema not in ('claro', 'oscuro', 'sistema'):
+        return {'success': False, 'message': 'Tema no válido'}, 400
+
+    conn = _connect()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("UPDATE usuarios SET tema = %s WHERE id = %s", (tema, user_id))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"Error guardando el tema: {e}")
+        return {'success': False, 'message': 'No se pudo guardar el tema'}, 500
+    finally:
+        conn.close()
+
+    session['tema'] = tema
+    return {'success': True}
 
 
 # Cierra la sesion del usuario autenticado
