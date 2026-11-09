@@ -4,7 +4,12 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="DataBook">
+    <meta name="format-detection" content="telephone=no">
 
     <title>{% block titulo %}DataBook{% endblock %}</title>
 
@@ -27,6 +32,19 @@
 <body>
 
     <div class="app-layout">
+
+        <!-- Barra superior: solo se ve en celulares y tabletas -->
+        <header class="barra-movil">
+            <button type="button" id="btn-menu-movil" aria-label="Abrir menú"
+                    aria-expanded="false" aria-controls="sidebar">
+                <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+                    <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor"
+                          stroke-width="2" stroke-linecap="round" fill="none"/>
+                </svg>
+            </button>
+            <span class="brand-movil">DataBook</span>
+        </header>
+        <div class="fondo-menu" id="fondo-menu"></div>
 
         <!-- Barra lateral -->
         <aside class="app-sidebar" id="sidebar">
@@ -310,7 +328,8 @@
             }
 
             function aplicarEstado(colapsado) {
-                sidebar.classList.toggle('colapsado', colapsado);
+                sidebar.classList.toggle('colapsado',
+                    colapsado && !window.matchMedia('(max-width: 900px)').matches);
 
                 if (iconoColapsar) {
                     iconoColapsar.textContent = colapsado ? '›' : '‹';
@@ -324,6 +343,12 @@
             } catch (error) {
                 aplicarEstado(false);
             }
+
+            window.addEventListener('resize', function () {
+                try {
+                    aplicarEstado(localStorage.getItem('sidebar-colapsado') === '1');
+                } catch (error) { /* sin almacenamiento: no se hace nada */ }
+            });
 
             btn.addEventListener('click', function (e) {
                 e.preventDefault();
@@ -348,5 +373,45 @@
 
     {% block scripts %}{% endblock %}
 
+
+    <!-- Menú móvil y tablas con desplazamiento horizontal -->
+    <script>
+    (function () {
+        var sidebar = document.getElementById('sidebar');
+        var boton = document.getElementById('btn-menu-movil');
+        var fondo = document.getElementById('fondo-menu');
+
+        if (sidebar && boton && fondo) {
+            var abrir = function (abierto) {
+                sidebar.classList.toggle('abierto-movil', abierto);
+                fondo.classList.toggle('abierto', abierto);
+                document.body.classList.toggle('menu-abierto', abierto);
+                boton.setAttribute('aria-expanded', abierto ? 'true' : 'false');
+            };
+            boton.addEventListener('click', function () {
+                abrir(!sidebar.classList.contains('abierto-movil'));
+            });
+            fondo.addEventListener('click', function () { abrir(false); });
+            sidebar.addEventListener('click', function (e) {
+                if (e.target.closest && e.target.closest('nav a')) { abrir(false); }
+            });
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') { abrir(false); }
+            });
+            window.addEventListener('resize', function () {
+                if (window.innerWidth > 900) { abrir(false); }
+            });
+        }
+
+        // Cada tabla va dentro de un contenedor que se desplaza de lado en pantallas angostas
+        document.querySelectorAll('table').forEach(function (t) {
+            if (t.parentElement && t.parentElement.classList.contains('tabla-scroll')) { return; }
+            var envoltura = document.createElement('div');
+            envoltura.className = 'tabla-scroll';
+            t.parentNode.insertBefore(envoltura, t);
+            envoltura.appendChild(t);
+        });
+    })();
+    </script>
 </body>
 </html>

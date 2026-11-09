@@ -58,7 +58,7 @@ def register():
         try:
             cursor.execute(
                 "INSERT INTO usuarios (nombre, email, password_hash, rol, primer_nombre, primer_apellido) VALUES (%s, %s, %s, %s, %s, %s)",
-                (nombre_completo, email, hashed_pw, 'usuario', primer_nombre, primer_apellido)
+                (nombre_completo, email, hashed_pw, 'staff', primer_nombre, primer_apellido)
             )
             conn.commit()
             flash("Registro exitoso. Ahora puedes iniciar sesión.", "success")

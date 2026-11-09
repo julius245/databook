@@ -231,6 +231,9 @@ ALTER TABLE sanciones_pedagogicas ADD COLUMN IF NOT EXISTS fecha_cumplimiento VA
 ALTER TABLE sanciones_pedagogicas ADD COLUMN IF NOT EXISTS notas TEXT;
 ALTER TABLE sanciones_pedagogicas ADD COLUMN IF NOT EXISTS estado VARCHAR(30) NOT NULL DEFAULT 'Activa';
 
+-- Las cuentas registradas antes como 'usuario' son duenas de su biblioteca ('staff').
+UPDATE usuarios SET rol = 'staff' WHERE rol = 'usuario';
+
 -- =====================================================================
 -- Columnas de auditoria (usuario que creo/actualizo el registro).
 -- ADD COLUMN IF NOT EXISTS: tambien actualiza bases ya creadas antes.

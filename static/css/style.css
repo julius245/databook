@@ -1532,3 +1532,130 @@ html[data-tema="oscuro"] .tarjeta-libro .portada-libro { background: var(--gris-
 .gestion-opciones { display: flex; flex-wrap: wrap; gap: 8px; }
 .gestion-opciones[hidden] { display: none; }
 .gestion-opciones form { margin: 0; }
+
+
+/* =========================================================
+   Compatibilidad con dispositivos (iPhone, Android, iPad, Mac…)
+   - Menú lateral como cajón en pantallas ≤ 900 px
+   - Tablas con desplazamiento horizontal, modales y formularios
+     que caben en pantallas pequeñas
+   - Zonas seguras (notch) y altura real en Safari móvil (dvh)
+   ========================================================= */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+img, video, canvas { max-width: 100%; height: auto; }
+
+.app-layout { min-height: 100vh; min-height: 100dvh; }
+.app-content { min-width: 0; }
+.report-grid > *, .dash-fila-principal > * { min-width: 0; }
+
+.tabla-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.overlay-modal { height: 100vh; height: 100dvh; }
+.modal, .modal-contenido { max-height: 90vh; max-height: 90dvh; -webkit-overflow-scrolling: touch; }
+
+.barra-movil, .fondo-menu { display: none; }
+
+@media (max-width: 900px) {
+  .app-layout { display: block; }
+
+  .barra-movil {
+    display: flex; align-items: center; gap: 12px;
+    position: sticky; top: 0; z-index: 900;
+    padding: calc(8px + env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) 8px max(12px, env(safe-area-inset-left, 0px));
+    background: var(--azul-oscuro); color: #fff;
+  }
+  .barra-movil button {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 44px; height: 44px; padding: 0;
+    background: transparent; color: #fff; border: 0; border-radius: 10px;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  .barra-movil button:active { background: rgba(255, 255, 255, 0.12); }
+  .brand-movil { font-weight: 700; font-size: 1.05rem; letter-spacing: 0.01em; }
+
+  /* El menú pasa a ser un cajón que sale desde la izquierda */
+  .app-sidebar,
+  .app-sidebar.colapsado {
+    position: fixed; top: 0; left: 0; bottom: 0;
+    width: min(82vw, 300px); height: 100vh; height: 100dvh;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    z-index: 1100;
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform 0.2s ease, visibility 0s linear 0.2s;
+    -webkit-overflow-scrolling: touch;
+  }
+  .app-sidebar.abierto-movil {
+    transform: none; visibility: visible;
+    transition: transform 0.2s ease, visibility 0s;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.35);
+  }
+  .fondo-menu.abierto {
+    display: block; position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+    background: rgba(15, 23, 42, 0.55); z-index: 1050;
+  }
+  body.menu-abierto { overflow: hidden; }
+  #btn-colapsar { display: none; }
+
+  .app-sidebar nav a, .perfil-menu a { min-height: 44px; }
+
+  .app-content {
+    min-height: calc(100vh - 60px); min-height: calc(100dvh - 60px);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  }
+  .app-header-row { flex-wrap: wrap; gap: 12px; }
+
+  .report-grid { grid-template-columns: 1fr; }
+  .report-panel { min-width: 0; overflow-x: auto; }
+}
+
+@media (max-width: 600px) {
+  .modal .fila-2, .modal-contenido .fila-2 { grid-template-columns: 1fr; }
+  .overlay-modal { padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); }
+  .modal, .modal-contenido { padding: 18px 16px; }
+}
+
+/* Pantallas táctiles: evita el zoom automático de iOS al enfocar un campo y agranda los botones */
+@media (hover: none) and (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { font-size: 16px; }
+  .acciones-tabla a, .acciones-tabla button, .acciones-icono a, .acciones-icono button { min-width: 40px; min-height: 40px; }
+  .modal .cerrar, .modal-contenido .cerrar { min-width: 44px; min-height: 44px; }
+}
+
+/* Reportes: las 4 tarjetas de indicadores no caben en una fila en pantallas pequeñas */
+@media (max-width: 900px) {
+  .reportes-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) {
+  .reportes-metrics { grid-template-columns: 1fr; }
+  .reportes-shell { padding: 16px; }
+}
+
+/* Páginas públicas (inicio, login, registro): la barra superior se acomoda en pantallas angostas */
+@media (max-width: 900px) {
+  .navbar-web {
+    flex-wrap: wrap; gap: 10px 16px;
+    padding: calc(12px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 12px max(16px, env(safe-area-inset-left, 0px));
+  }
+  .navbar-web nav { order: 3; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .navbar-web nav ul { gap: 22px; white-space: nowrap; }
+  .navbar-web nav a { display: inline-block; padding: 6px 0; }
+  .navbar-web .acciones { gap: 12px; margin-left: auto; }
+}
+
+/* Pie de página de las páginas públicas */
+@media (max-width: 900px) {
+  .footer-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 600px) {
+  .footer-grid { grid-template-columns: 1fr; }
+  .footer-bottom { flex-direction: column; gap: 8px; }
+}
